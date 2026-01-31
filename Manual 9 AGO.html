@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Utilizador - Gerador de Relatório Fotográfico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --cor-primaria: #005A9C;
+            --cor-secundaria: #003d6b;
+            --cor-destaque: #FF9933;
+            --cor-fundo: #f8f9fa;
+            --cor-texto: #343a40;
+            --cor-texto-claro: #6c757d;
+            --cor-borda: #dee2e6;
+            --sombra-caixa: 0 4px 15px rgba(0, 0, 0, 0.07);
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            margin: 0;
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            display: flex;
+            line-height: 1.7;
+        }
+
+        #sidebar {
+            width: 280px;
+            background-color: #fff;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding: 2rem 1.5rem;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #sidebar h1 {
+            font-family: 'Roboto', sans-serif;
+            font-size: 1.5rem;
+            color: var(--cor-primaria);
+            margin-bottom: 2rem;
+            border-bottom: 2px solid var(--cor-borda);
+            padding-bottom: 1rem;
+        }
+
+        #sidebar nav {
+            flex-grow: 1;
+        }
+
+        #sidebar nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #sidebar nav li a {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--cor-texto);
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            transition: background-color 0.3s, color 0.3s;
+            font-weight: 500;
+        }
+
+        #sidebar nav li a:hover, #sidebar nav li a.active {
+            background-color: var(--cor-primaria);
+            color: #fff;
+        }
+        
+        .sidebar-footer {
+            padding-top: 1rem;
+            margin-top: 2rem;
+            border-top: 1px solid var(--cor-borda);
+            font-size: 0.8rem;
+            color: var(--cor-texto-claro);
+            text-align: center;
+        }
+
+        #main-content {
+            margin-left: 280px;
+            padding: 3rem 4rem;
+            width: calc(100% - 280px);
+        }
+
+        section {
+            margin-bottom: 4rem;
+            background: #fff;
+            padding: 2.5rem;
+            border-radius: 8px;
+            box-shadow: var(--sombra-caixa);
+        }
+        
+        section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2 {
+            font-family: 'Roboto', sans-serif;
+            font-size: 2rem;
+            color: var(--cor-secundaria);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--cor-borda);
+        }
+        
+        h3 {
+            font-family: 'Roboto', sans-serif;
+            font-size: 1.4rem;
+            color: var(--cor-primaria);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        p, li {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: var(--cor-texto-claro);
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        code {
+            background-color: #e9ecef;
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            border-radius: 3px;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+        
+        .botao-manual {
+             display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #fff;
+            font-family: inherit;
+        }
+        .botao-gemini { background-color: var(--cor-gemini); }
+        .botao-anotacao { background-color: var(--cor-anotacao); }
+        .botao-secundario { background-color: #6c757d; }
+        .botao-principal { background-color: var(--cor-primaria); }
+
+        .alerta {
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-left: 5px solid;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        .alerta-info { border-color: var(--cor-primaria); }
+        .alerta-aviso { border-color: var(--cor-destaque); }
+        
+        .alerta p { margin: 0; }
+
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1001;
+            background: var(--cor-primaria);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        @media (max-width: 992px) {
+            body {
+                flex-direction: column;
+            }
+            #sidebar {
+                transform: translateX(-100%);
+                z-index: 1000;
+            }
+            #sidebar.open {
+                transform: translateX(0);
+            }
+            #main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 2rem 1.5rem;
+            }
+            .menu-toggle {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <button class="menu-toggle" id="menu-toggle">☰</button>
+
+    <aside id="sidebar">
+        <h1>Manual de Utilizador</h1>
+        <nav id="nav-menu">
+            <ul>
+                <li><a href="#introducao" class="active">Introdução</a></li>
+                <li><a href="#primeiros-passos">Primeiros Passos</a></li>
+                <li><a href="#gestao-fotos">Gestão de Fotografias</a></li>
+                <li><a href="#ia-gemini">Funcionalidades de IA</a></li>
+                <li><a href="#anotacoes">Anotações nas Imagens</a></li>
+                <li><a href="#gestao-ficheiros">Gestão de Ficheiros</a></li>
+                <li><a href="#exportacao">Exportação de Relatórios</a></li>
+                <li><a href="#mapas">Funcionalidades do Mapa</a></li>
+                <li><a href="#faq">Dicas e FAQ</a></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer">
+            Versão: V 0.0
+        </div>
+    </aside>
+
+    <main id="main-content">
+        <section id="introducao">
+            <h2>Bem-vindo ao Gerador de Relatório Fotográfico</h2>
+            <p>Este manual detalha o funcionamento do <strong>Gerador de Relatório Fotográfico</strong>, uma ferramenta poderosa e flexível desenhada para otimizar a criação de relatórios técnicos profissionais.</p>
+            <p>Com esta aplicação, pode facilmente combinar fotografias, dados técnicos, descrições e observações num documento A4 perfeitamente formatado. As funcionalidades avançadas, como a integração com a IA da Gemini, anotações em imagens e mapas interativos, permitem um nível de detalhe e profissionalismo sem precedentes.</p>
+        </section>
+
+        <section id="primeiros-passos">
+            <h2>Primeiros Passos: Configurar o seu Relatório</h2>
+            <p>O formulário inicial é o ponto de partida para a criação do seu relatório. Aqui, define-se a estrutura e os dados base.</p>
+            
+            <h3>Dados Essenciais do Relatório</h3>
+            <ul>
+                <li><strong>Título do Relatório:</strong> O título principal que aparecerá na capa e nos rodapés.</li>
+                <li><strong>Título do Cabeçalho:</strong> Um subtítulo que aparece no canto superior direito de cada página.</li>
+                <li><strong>Nº do Relatório e Data:</strong> Identificadores únicos para o seu documento.</li>
+                <li><strong>Cliente e Elaborado Por:</strong> Campos para identificar as partes envolvidas.</li>
+            </ul>
+
+            <h3>Identidade Visual</h3>
+            <ul>
+                <li><strong>Logótipo:</strong> Imagem que aparece no topo da primeira página.</li>
+                <li><strong>Imagem de Rodapé:</strong> Imagem que pode ser usada como rodapé visual em todas as páginas.</li>
+                <li><strong>Rubrica/Assinatura:</strong> A sua assinatura, que será colocada na página de capa. Recomenda-se um ficheiro de imagem com fundo transparente (PNG).</li>
+                <li><strong>Rubrica Abreviada:</strong> Uma versão mais pequena da sua rubrica para as restantes páginas.</li>
+            </ul>
+
+            <h3>Chave da API Gemini</h3>
+            <p>Para usar as funcionalidades de Inteligência Artificial (✨), é necessário inserir uma chave da API da Google Gemini. Pode obtê-la gratuitamente em <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.</p>
+            <div class="alerta alerta-aviso">
+                <p><strong>Privacidade:</strong> A sua chave de API é usada diretamente pelo seu navegador para comunicar com a Google e nunca é guardada ou partilhada pelo nosso programa.</p>
+            </div>
+        </section>
+
+        <section id="gestao-fotos">
+            <h2>Gestão de Fotografias</h2>
+            <p>A gestão das fotografias é o coração do relatório. A aplicação oferece controlo total sobre as imagens.</p>
+            
+            <h3>Adicionar Fotografias</h3>
+            <p>Clique no botão <button class="botao-manual botao-secundario">Adicionar Fotografias</button> para selecionar as imagens do seu computador. Pode selecionar múltiplos ficheiros de uma só vez, incluindo formatos comuns como JPEG, PNG e também HEIC (formato de iPhone).</p>
+
+            <h3>Organizar e Selecionar</h3>
+            <ul>
+                <li><strong>Reordenar:</strong> Clique e arraste uma miniatura para alterar a sua posição no relatório.</li>
+                <li><strong>Selecionar/Desselecionar:</strong> Um simples clique numa miniatura alterna a sua seleção. Apenas as fotos selecionadas (com a borda azul) serão incluídas no relatório.</li>
+                <li><strong>Remover:</strong> Passe o rato sobre uma miniatura e clique no ícone do caixote do lixo (🗑️) para a remover permanentemente da lista.</li>
+                <li><strong>Rodar:</strong> Clique no ícone de rotação (↻) para girar a imagem 90 graus no sentido horário.</li>
+            </ul>
+        </section>
+
+        <section id="ia-gemini">
+            <h2>Funcionalidades de IA com Gemini ✨</h2>
+            <p>A integração com a IA da Gemini permite-lhe automatizar e refinar a escrita de textos técnicos, poupando tempo e melhorando a qualidade do seu relatório.</p>
+
+            <h3>Gerar Descrições e Legendas</h3>
+            <p>Ao lado dos campos de texto "Descrição do Registo", "Observações Finais" e das legendas de cada foto, encontrará o botão <button class="botao-manual botao-gemini">Gerar/Refinar ✨</button>.</p>
+            <ul>
+                <li><strong>Gerar do zero:</strong> Deixe o campo de texto vazio e clique no botão para que a IA gere um texto com base no contexto (título do relatório ou imagem).</li>
+                <li><strong>Refinar texto existente:</strong> Escreva algumas notas ou um rascunho no campo de texto e clique no botão. A IA irá usar as suas notas como base para criar um texto mais profissional, coeso e detalhado.</li>
+            </ul>
+
+            <h3>Gerar Sumário Executivo</h3>
+            <p>Após gerar o relatório, na vista de pré-visualização, pode usar o botão <button class="botao-manual botao-gemini">Gerar Sumário Executivo ✨</button>. Esta função analisa todas as legendas das fotos e cria um sumário executivo e uma lista de recomendações, que são inseridos numa nova página no início do relatório.</p>
+        </section>
+        
+        <section id="anotacoes">
+            <h2>Anotações nas Imagens</h2>
+            <p>Para destacar detalhes específicos, pode desenhar diretamente sobre as imagens.</p>
+            <ol>
+                <li>Clique no botão <button class="botao-manual botao-anotacao">✏️ Anotar</button> abaixo da imagem desejada para mostrar a barra de ferramentas.</li>
+                <li>Selecione uma ferramenta (Seta, Círculo ou Texto).</li>
+                <li>Clique e arraste sobre a imagem para desenhar. Para a ferramenta de texto, clique onde deseja inserir o texto e digite na caixa que aparece.</li>
+                <li>Use os botões de desfazer (↶), refazer (↷) ou limpar para gerir as suas anotações.</li>
+            </ol>
+            <div class="alerta alerta-info">
+                <p>As anotações são guardadas automaticamente e serão incluídas nas exportações para HTML, DOCX e PDF.</p>
+            </div>
+        </section>
+
+        <section id="gestao-ficheiros">
+            <h2>Gestão de Ficheiros: Guardar e Carregar</h2>
+            <p>Nunca perca o seu trabalho. A aplicação permite guardar todo o progresso num único ficheiro.</p>
+            
+            <h3>Guardar Relatório</h3>
+            <p>Na vista de pré-visualização, clique em <button class="botao-manual botao-secundario">Guardar</button>. Isto irá gerar um ficheiro <code>.json</code> que contém todos os dados do formulário, as legendas, as anotações e as próprias imagens. Guarde este ficheiro em segurança.</p>
+
+            <h3>Carregar Relatório</h3>
+            <p>Na página inicial, clique em <button class="botao-manual botao-secundario">Carregar Relatório Guardado</button> e selecione o ficheiro <code>.json</code> que guardou anteriormente. Todos os campos e fotografias serão restaurados.</p>
+            
+            <h3>O que são Templates e como funcionam?</h3>
+            <p>Os templates são uma forma de guardar as suas configurações recorrentes para não ter de as inserir sempre que cria um novo relatório. Isto é ideal para guardar dados como o logótipo da sua empresa, a imagem de rodapé, o seu nome no campo "Elaborado Por", etc.</p>
+            <ul>
+                <li><strong>Para guardar um template:</strong> Preencha os campos que deseja guardar (logótipo, rodapé, nome, etc.) e clique no botão <button class="botao-manual botao-secundario">📋 Templates</button>. Na janela que aparece, clique em <button class="botao-manual botao-principal">💾 Guardar Template Atual</button> e dê-lhe um nome.</li>
+                <li><strong>Para usar um template:</strong> Clique em <button class="botao-manual botao-secundario">📋 Templates</button> e, na lista de templates guardados, clique no botão "Aplicar" correspondente ao que deseja usar. Os campos do formulário serão preenchidos automaticamente.</li>
+            </ul>
+        </section>
+
+        <section id="exportacao">
+            <h2>Exportação de Relatórios</h2>
+            <p>A aplicação oferece três formatos de exportação para diferentes finalidades.</p>
+            
+            <h3>Exportar HTML</h3>
+            <p>Gera um ficheiro <code>.html</code> autónomo e interativo. É a versão mais fiel à pré-visualização, mantendo os mapas interativos e as hiperligações entre as fotos e os marcadores no mapa. Ideal para partilha digital.</p>
+
+            <h3>Exportar DOCX</h3>
+            <p>Cria um ficheiro <code>.docx</code> para edição no Microsoft Word ou noutros processadores de texto.</p>
+            <div class="alerta alerta-aviso">
+                <p><strong>Compatibilidade:</strong> Se o ficheiro DOCX apresentar erros ao abrir no Microsoft Word, experimente abri-lo com o <strong>Google Docs</strong>, que é geralmente mais tolerante com a formatação.</p>
+            </div>
+
+            <h3>Imprimir / PDF</h3>
+            <p>Abre a caixa de diálogo de impressão do seu navegador. Para guardar como PDF, escolha a opção "Guardar como PDF" na lista de impressoras.</p>
+            <div class="alerta alerta-info">
+                <p><strong>Nota Importante:</strong> A versão impressa em PDF é considerada a cópia final e oficial do relatório, preparada para ser partilhada com terceiros.</p>
+            </div>
+        </section>
+
+        <section id="mapas">
+            <h2>Funcionalidades do Mapa</h2>
+            <p>Se as suas fotografias contiverem dados de geolocalização (GPS), a aplicação irá gerar automaticamente duas páginas de mapas no final do relatório.</p>
+            
+            <h3>Mapa de Calor (Heatmap)</h3>
+            <p>A primeira página de mapa mostra uma "mancha de calor" que indica as zonas com maior concentração de fotografias, dando uma visão geral da área de trabalho.</p>
+
+            <h3>Mapa Detalhado</h3>
+            <p>A segunda página apresenta um mapa com marcadores numerados para cada foto. Estes marcadores são interativos:</p>
+            <ul>
+                <li><strong>Clicar no marcador:</strong> Leva-o diretamente para a fotografia correspondente no relatório.</li>
+                <li><strong>Clicar no ícone 📍 na foto:</strong> Leva-o para o marcador correspondente no mapa, destacando-o.</li>
+            </ul>
+        </section>
+
+        <section id="faq">
+            <h2>Dicas e Perguntas Frequentes</h2>
+            <h3>Como obtenho os melhores resultados com a IA?</h3>
+            <p>Seja específico. Em vez de uma nota vaga como "verificar pilar", escreva "verificar fissuras e corrosão na base do pilar P-05". Quanto mais detalhada for a sua nota, mais preciso será o texto gerado pela IA.</p>
+            
+            <h3>As minhas fotos de iPhone (HEIC) não funcionam. O que fazer?</h3>
+            <p>A aplicação converte automaticamente ficheiros HEIC. Se encontrar algum problema, certifique-se de que está a usar um navegador moderno (Chrome, Firefox, Edge). A conversão é feita localmente no seu computador e pode demorar alguns segundos por foto.</p>
+
+            <h3>O relatório exportado para DOCX parece diferente da pré-visualização.</h3>
+            <p>Isto é normal. A conversão para DOCX tenta replicar a estrutura, mas a formatação final pode variar dependendo do seu processador de texto e das suas definições. O formato HTML é sempre o mais fiel à pré-visualização.</p>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const menuToggle = document.getElementById('menu-toggle');
+            const sidebar = document.getElementById('sidebar');
+            const navLinks = document.querySelectorAll('#nav-menu a');
+
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+            });
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    e.target.classList.add('active');
+                    if (window.innerWidth <= 992) {
+                        sidebar.classList.remove('open');
+                    }
+                });
+            });
+
+            // Active link on scroll
+            const sections = document.querySelectorAll('section');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.remove('active');
+                            if (link.getAttribute('href').substring(1) === entry.target.id) {
+                                link.classList.add('active');
+                            }
+                        });
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+        });
+    </script>
+</body>
+</html>

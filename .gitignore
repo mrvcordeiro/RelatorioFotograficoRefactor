@@ -1,0 +1,19 @@
+# Subdiretórios com ferramentas auxiliares
+Compressor de ficheiros/
+NEwConverterHEIC/
+
+# Dados de utilizador e relatórios (informação sensível)
+USER DATA AND REPORTS/
+
+# Ficheiros JSON com dados sensíveis ou templates grandes
+*.json
+
+# Logos e assinaturas (informação corporativa)
+*.jpg
+*.png
+*.pdf
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.tmp
