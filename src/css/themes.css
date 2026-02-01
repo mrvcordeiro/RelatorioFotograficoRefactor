@@ -235,3 +235,153 @@
         rgba(50, 50, 50, 0.95) 100%
     );
 }
+
+/* =====================================================
+   CORREÇÕES DARK MODE - Botões e Elementos
+   ===================================================== */
+
+/* Botões secundários em dark mode */
+[data-theme="dark"] .botao-secundario {
+    background: #3A3A3A;
+    color: #E0E0E0;
+    border: 1px solid #4A4A4A;
+}
+
+[data-theme="dark"] .botao-secundario:hover {
+    background: #4A4A4A;
+    border-color: var(--cor-primaria);
+    color: #fff;
+}
+
+/* Botão de ficheiro em dark mode */
+[data-theme="dark"] .botao-ficheiro {
+    background: #3A3A3A;
+    color: #E0E0E0;
+}
+
+/* Botões de layout em dark mode */
+[data-theme="dark"] .botao-layout {
+    background: #3A3A3A;
+    color: #E0E0E0;
+    border-color: var(--cor-primaria);
+}
+
+[data-theme="dark"] .botao-layout:hover {
+    background: #4A4A4A;
+}
+
+[data-theme="dark"] .botao-layout.activa {
+    background: var(--cor-primaria);
+    color: #fff;
+}
+
+/* Ferramenta de anotação em dark mode */
+[data-theme="dark"] .ferramenta-btn {
+    background: #3A3A3A;
+    color: #E0E0E0;
+    border-color: #4A4A4A;
+}
+
+[data-theme="dark"] .ferramenta-btn:hover:not(.activa) {
+    background: #4A4A4A;
+}
+
+[data-theme="dark"] .ferramenta-btn.activa {
+    background: var(--cor-primaria);
+    color: #fff;
+}
+
+/* =====================================================
+   CORREÇÕES DARK MODE - Logos e Assinaturas
+   ===================================================== */
+
+/* Logos e assinaturas com fundo claro em dark mode */
+[data-theme="dark"] .logotipo-pagina {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+[data-theme="dark"] .rubrica-capa,
+[data-theme="dark"] .rubrica-abrev-pagina {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 4px;
+    border-radius: 4px;
+}
+
+/* Preview containers em dark mode */
+[data-theme="dark"] #logo-preview-container,
+[data-theme="dark"] #rodape-preview-container,
+[data-theme="dark"] #rubrica-preview-container,
+[data-theme="dark"] #rubrica-abrev-preview-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: #4A4A4A;
+}
+
+/* =====================================================
+   CORREÇÕES DARK MODE - Mapas Leaflet
+   ===================================================== */
+
+/* Marcadores do mapa em dark mode - mais visíveis */
+[data-theme="dark"] .leaflet-div-icon {
+    background: var(--cor-primaria);
+    color: #fff;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Popup do mapa em dark mode */
+[data-theme="dark"] .leaflet-popup-content-wrapper {
+    background: #2A2A2A;
+    color: #E0E0E0;
+}
+
+[data-theme="dark"] .leaflet-popup-tip {
+    background: #2A2A2A;
+}
+
+/* Controles do mapa em dark mode */
+[data-theme="dark"] .leaflet-control-zoom a {
+    background: #2A2A2A;
+    color: #E0E0E0;
+    border-color: #4A4A4A;
+}
+
+[data-theme="dark"] .leaflet-control-zoom a:hover {
+    background: #3A3A3A;
+}
+
+/* Botão "Ver no Mapa" em dark mode */
+[data-theme="dark"] .botao-mapa {
+    background: linear-gradient(135deg, #4DA6CC 0%, #3498DB 100%);
+    color: #fff;
+}
+
+/* =====================================================
+   CORREÇÕES DARK MODE - Texto e Labels
+   ===================================================== */
+
+/* Labels dos controlos de layout */
+[data-theme="dark"] .controles-layout label {
+    color: #E0E0E0;
+}
+
+/* Info de seleção */
+[data-theme="dark"] .info-selecao {
+    color: #B0B0B0;
+}
+
+/* Info aviso */
+[data-theme="dark"] .info-aviso {
+    color: #909090;
+}
+
+/* Foto bloco texto */
+[data-theme="dark"] .foto-bloco p {
+    color: #B0B0B0;
+}
+
+/* Rodapé página */
+[data-theme="dark"] .rodape-pagina {
+    color: #909090;
+}
