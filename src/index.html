@@ -1,0 +1,2782 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Relatório Fotográfico - V33 Refactored</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <!-- CSS Modular - Ordem importante! -->
+    <link rel="stylesheet" href="css/print.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/themes.css">
+
+    <!-- Bibliotecas para Mapas e Heatmap -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://unpkg.com/exifreader@4.20.0/dist/exif-reader.js"></script>
+
+    <style>
+        /* Estilos inline mínimos - só overrides específicos se necessário */
+        /* Todo o CSS foi movido para ficheiros em css/ */
+    </style>
+</head>
+<body>
+    <button class="theme-toggle no-print" onclick="toggleTheme()" title="Alternar tema">🌙</button>
+    <div id="loading-overlay">A processar...</div>
+
+    <!-- Modals de Alerta/Confirmação Personalizadas -->
+    <div id="custom-alert-modal" class="custom-modal">
+        <div class="custom-modal-content">
+            <h3>Aviso</h3>
+            <p id="custom-alert-message"></p>
+            <div class="custom-modal-buttons">
+                <button class="alert-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-confirm-modal" class="custom-modal">
+        <div class="custom-modal-content">
+            <h3>Confirmação</h3>
+            <p id="custom-confirm-message"></p>
+            <div class="custom-modal-buttons">
+                <button class="confirm-yes">Sim</button>
+                <button class="confirm-no">Não</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Seleção de Legendas -->
+    <div id="modal-legendas" class="custom-modal">
+        <div class="custom-modal-content" style="max-width: 600px; text-align: left;">
+            <h3>Selecionar Legenda Típica</h3>
+            <div id="lista-legendas-modal" style="max-height: 60vh; overflow-y: auto; margin-top: 1rem;">
+                <!-- Legendas serão carregadas aqui -->
+            </div>
+            <div class="custom-modal-buttons" style="margin-top: 1rem;">
+                <button onclick="fecharSeletorLegendas()" class="alert-ok">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="container">
+        <!-- PÁGINA INICIAL -->
+        <div id="pagina-inicial">
+            <h1>Gerador de Relatório Fotográfico ✨</h1>
+            <p>Preencha os dados e use o assistente de IA para gerar um relatório profissional.</p>
+            
+            <div class="botoes-ficheiro">
+                <label for="carregar-relatorio" class="botao botao-ficheiro botao-secundario">
+                    Carregar Relatório Guardado
+                </label>
+                <input type="file" id="carregar-relatorio" accept=".json">
+                
+                <button type="button" class="botao botao-ficheiro botao-secundario" onclick="mostrarGestorTemplates()">
+                    📋 Templates
+                </button>
+            </div>
+            
+            <!-- Modal de Templates -->
+            <div id="modal-templates" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+                <div style="position: relative; margin: 50px auto; max-width: 600px; background: white; padding: 2rem; border-radius: 8px; max-height: 80vh; overflow-y: auto;">
+                    <h3>Gestão de Templates</h3>
+                    <button onclick="fecharModalTemplates()" style="position: absolute; top: 1rem; right: 1rem; border: none; background: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+                    
+                    <div style="margin: 1rem 0; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" class="botao botao-pequeno botao-principal" onclick="guardarComoTemplate()">💾 Adicionar Template</button>
+                        <button type="button" class="botao botao-pequeno botao-secundario" onclick="exportarTemplates()">📤 Exportar Templates</button>
+                        <label for="importar-templates-input" class="botao botao-pequeno botao-secundario">📥 Importar Templates</label>
+                        <input type="file" id="importar-templates-input" accept=".json" onchange="importarTemplates(event)">
+                    </div>
+                    
+                    <div id="lista-templates" style="margin-top: 2rem;">
+                        <!-- Templates serão carregados aqui -->
+                    </div>
+                </div>
+            </div>
+
+            <form id="form-relatorio">
+                <div class="campo-form">
+                    <label for="gemini-api-key">Chave da API Gemini (Opcional)</label>
+                    <input type="password" id="gemini-api-key" placeholder="Insira a sua chave para usar as funcionalidades de IA">
+                    <p class="info-aviso">A sua chave é usada apenas no seu navegador e não é partilhada. O conteúdo gerado pela IA é da sua inteira responsabilidade e deve ser revisto. <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--cor-primaria);">Obter API Key aqui</a></p>
+                </div>
+
+                <div class="campo-form">
+                    <label for="input-logo">Logótipo (Opcional)</label>
+                    <label for="input-logo" class="botao botao-secundario botao-ficheiro">
+                        Escolher Ficheiro
+                    </label>
+                    <input type="file" id="input-logo" accept="image/*">
+                    <div id="logo-preview-container">
+                        <img id="logo-preview-img" src="#" alt="Pré-visualização do logótipo">
+                        <button type="button" class="botao-remover-preview" title="Remover Logótipo" onclick="removerImagem('logo', event)">×</button>
+                    </div>
+                </div>
+                
+                 <div class="campo-form">
+                    <label for="input-rodape">Imagem de Rodapé (Opcional)</label>
+                    <label for="input-rodape" class="botao botao-secundario botao-ficheiro">
+                        Escolher Ficheiro
+                    </label>
+                    <input type="file" id="input-rodape" accept="image/*">
+                    <div id="rodape-preview-container">
+                        <img id="rodape-preview-img" src="#" alt="Pré-visualização do rodapé">
+                        <button type="button" class="botao-remover-preview" title="Remover Rodapé" onclick="removerImagem('rodape', event)">×</button>
+                    </div>
+                </div>
+
+                <div class="campo-form">
+                    <label for="titulo">Título do Relatório</label>
+                    <input type="text" id="titulo" required placeholder="Ex: Vistoria à Obra X">
+                </div>
+                <div class="campo-form">
+                    <label for="subtitulo-relatorio">Título do Cabeçalho (canto superior direito)</label>
+                    <input type="text" id="subtitulo-relatorio" value="Registo Fotográfico de campo">
+                </div>
+                <div class="campo-form-inline">
+                    <div class="campo-form">
+                        <label for="numero">Nº do Relatório</label>
+                        <input type="text" id="numero" required placeholder="Ex: 001/2025">
+                    </div>
+                    <div class="campo-form">
+                        <label for="data">Data</label>
+                        <input type="date" id="data" required>
+                    </div>
+                </div>
+                <div class="campo-form-inline">
+                     <div class="campo-form">
+                        <label for="cliente">Cliente</label>
+                        <input type="text" id="cliente" placeholder="Insira o nome do cliente">
+                    </div>
+                    <div class="campo-form">
+                        <label for="elaborado-por">Elaborado Por</label>
+                        <input type="text" id="elaborado-por" placeholder="Insira o seu nome ou da sua empresa">
+                    </div>
+                </div>
+                
+                <div class="campo-form-inline">
+                    <div class="campo-form">
+                        <label for="input-rubrica">Rubrica/Assinatura (PNG/TIFF transparente)</label>
+                        <label for="input-rubrica" class="botao botao-secundario botao-ficheiro">
+                            Escolher Ficheiro
+                        </label>
+                        <input type="file" id="input-rubrica" accept="image/png,image/tiff,.png,.tif,.tiff">
+                        <div id="rubrica-preview-container">
+                            <img id="rubrica-preview-img" src="#" alt="Pré-visualização da rubrica">
+                            <button type="button" class="botao-remover-preview" title="Remover Rubrica" onclick="removerImagem('rubrica', event)">×</button>
+                        </div>
+                    </div>
+                    
+                    <div class="campo-form">
+                        <label for="input-rubrica-abrev">Rubrica Abreviada (PNG/TIFF transparente)</label>
+                        <label for="input-rubrica-abrev" class="botao botao-secundario botao-ficheiro">
+                            Escolher Ficheiro
+                        </label>
+                        <input type="file" id="input-rubrica-abrev" accept="image/png,image/tiff,.png,.tif,.tiff">
+                        <div id="rubrica-abrev-preview-container">
+                            <img id="rubrica-abrev-preview-img" src="#" alt="Pré-visualização da rubrica abreviada">
+                            <button type="button" class="botao-remover-preview" title="Remover Rubrica Abreviada" onclick="removerImagem('rubricaAbrev', event)">×</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="campo-form">
+                    <label for="descricao">Descrição do Registo</label>
+                    <button type="button" class="botao botao-pequeno botao-gemini" onclick="handleGerarDescricao()">Gerar/Refinar Descrição ✨</button>
+                    <textarea id="descricao" rows="6" required placeholder="Descreva o objetivo do registo ou insira notas e clique em 'Gerar/Refinar'"></textarea>
+                </div>
+                <div class="campo-form">
+                    <label for="observacoes">Observações Finais</label>
+                    <button type="button" class="botao botao-pequeno botao-gemini" onclick="handleGerarObservacoes()">Gerar/Refinar Observações ✨</button>
+                    <textarea id="observacoes" rows="4" placeholder="Insira notas ou deixe em branco para a IA gerar um resumo com base nas legendas das fotos."></textarea>
+                </div>
+                
+                <!-- CAMPOS PARA O MAPA -->
+                <div class="campo-form">
+                    <label>Configurações do Mapa Detalhado</label>
+                    <div class="campo-form-inline">
+                        <div class="campo-form">
+                            <label for="camada-mapa">Camada do Mapa</label>
+                            <select id="camada-mapa">
+                                <option value="padrao" selected>Mapa Padrão</option>
+                                <option value="satelite">Satélite</option>
+                                <option value="topografico">Mapa Topográfico</option>
+                            </select>
+                        </div>
+                        <div class="campo-form">
+                            <label for="zoom-mapa">Nível de Zoom</label>
+                            <select id="zoom-mapa">
+                                <option value="auto" selected>Automático</option>
+                                <option value="10">10 (Cidade)</option>
+                                <option value="12">12</option>
+                                <option value="14">14</option>
+                                <option value="16">16 (Ruas)</option>
+                                <option value="18">18 (Edifícios)</option>
+                                <option value="20">20</option>
+                                <option value="22">22 (Máximo)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="campo-form">
+                    <label>Fotografias</label>
+                    <div class="area-selecao-fotos">
+                         <div class="botoes-area-fotos">
+                            <label for="input-fotos" class="botao botao-secundario">Adicionar Fotografias</label>
+                            <label for="input-legendas" class="botao botao-secundario">Carregar Legendas</label>
+                            <button type="button" class="botao botao-gemini" onclick="handleAnalisarTodasAsFotos()">Analisar Todas as Fotos ✨</button>
+                         </div>
+                        <input type="file" id="input-fotos" multiple accept="image/jpeg,image/png,image/gif,image/webp">
+                        <input type="file" id="input-legendas" accept=".json">
+                        <div class="info-selecao" id="info-selecao">
+                            <span id="contador-fotos">0 fotografias selecionadas</span> | 
+                            Clique na imagem para ampliar | Use os controlos para reordenar | Selecione o layout de cada foto
+                        </div>
+                        <div class="pre-visualizacao-fotos" id="pre-visualizacao"></div>
+                    </div>
+                </div>
+
+                <div class="botoes-form">
+                    <button type="submit" class="botao botao-principal">Gerar Relatório</button>
+                    <button type="button" class="botao botao-secundario" onclick="limparFormulario()">Limpar Formulário</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- RELATÓRIO GERADO -->
+        <div id="relatorio-gerado" style="display: none;">
+            <div class="botoes-acao">
+                <div class="grupo-botoes-esquerda">
+                     <button type="button" onclick="voltarInicio()" class="botao botao-secundario">Voltar ao Início</button>
+                     <button type="button" onclick="handleGerarSumario()" class="botao botao-gemini">Gerar Sumário Executivo ✨</button>
+                </div>
+                <div class="grupo-botoes-direita">
+                    <button type="button" onclick="exportarKML()" class="botao botao-secundario">🌍 Exportar KML (Google Earth)</button>
+                    <button type="button" onclick="exportarHTML()" class="botao botao-secundario">🌐 Exportar HTML</button>
+                    <button type="button" onclick="exportarDOCX()" class="botao botao-secundario">📄 Exportar DOCX</button>
+                    <button type="button" onclick="guardarRelatorio()" class="botao botao-secundario">Guardar</button>
+                    <button type="button" onclick="imprimirRelatorio()" class="botao botao-principal">Imprimir / PDF</button>
+                </div>
+            </div>
+            <div id="paginas-relatorio"></div>
+        </div>
+    </main>
+
+    <!-- Modal para Foto Ampliada -->
+    <div id="modal-foto-ampliada">
+        <span class="fechar-modal-foto">&times;</span>
+        <img class="modal-foto-conteudo" id="img-ampliada">
+    </div>
+
+    <script>
+        // --- ESTADO GLOBAL ---
+        let fotosCarregadas = [];
+        let fotosSelecionadas = [];
+        let dadosRelatorio = {};
+        let logotipoBase64 = null;
+        let rodapeBase64 = null;
+        let rubricaBase64 = null;
+        let rubricaAbrevBase64 = null;
+        let mapaDetalhadoInstance = null;
+        let templates = [];
+        let legendasTipicas = [];
+        let fotoIdParaLegenda = null;
+        
+        let desenhoActual = {
+            fotoId: null,
+            ferramenta: null,
+            isDrawing: false,
+            startX: 0,
+            startY: 0,
+            cor: '#FF5722',
+            historico: {},
+            historicoIndex: {}
+        };
+
+        // --- Variáveis para Modais Personalizadas ---
+        let resolveConfirmPromise;
+
+        // --- INICIALIZAÇÃO ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('form-relatorio');
+            form.addEventListener('submit', (e) => { e.preventDefault(); gerarRelatorio(); });
+            
+            document.getElementById('data').valueAsDate = new Date();
+            document.getElementById('input-fotos').addEventListener('change', (e) => adicionarFotos(e.target.files));
+            document.getElementById('input-legendas').addEventListener('change', (e) => carregarLegendas(e.target.files[0]));
+            document.getElementById('input-logo').addEventListener('change', (e) => carregarLogotipo(e.target.files[0]));
+            document.getElementById('input-rodape').addEventListener('change', (e) => carregarRodape(e.target.files[0]));
+            document.getElementById('input-rubrica').addEventListener('change', (e) => carregarRubrica(e.target.files[0]));
+            document.getElementById('input-rubrica-abrev').addEventListener('change', (e) => carregarRubricaAbrev(e.target.files[0]));
+            document.getElementById('carregar-relatorio').addEventListener('change', (e) => carregarRelatorio(e.target.files[0]));
+            
+            const savedTheme = localStorage.getItem('relatorioTheme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeToggle(savedTheme);
+
+            const modalFoto = document.getElementById('modal-foto-ampliada');
+            modalFoto.addEventListener('click', fecharFotoAmpliada);
+
+            document.querySelector('#custom-alert-modal .alert-ok').onclick = () => document.getElementById('custom-alert-modal').style.display = 'none';
+            document.querySelector('#custom-confirm-modal .confirm-yes').onclick = () => {
+                document.getElementById('custom-confirm-modal').style.display = 'none';
+                resolveConfirmPromise(true);
+            };
+            document.querySelector('#custom-confirm-modal .confirm-no').onclick = () => {
+                document.getElementById('custom-confirm-modal').style.display = 'none';
+                resolveConfirmPromise(false);
+            };
+        });
+        
+        // --- Modais Personalizadas ---
+        function showAlert(message) {
+            document.getElementById('custom-alert-message').textContent = message;
+            document.getElementById('custom-alert-modal').style.display = 'flex';
+        }
+
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                document.getElementById('custom-confirm-message').textContent = message;
+                document.getElementById('custom-confirm-modal').style.display = 'flex';
+                resolveConfirmPromise = resolve;
+            });
+        }
+
+        function showPrompt(message, defaultValue = '') {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'custom-modal';
+                modal.style.display = 'flex';
+                modal.innerHTML = `
+                    <div class="custom-modal-content">
+                        <h3>${message}</h3>
+                        <input type="text" id="custom-prompt-input" value="${defaultValue}" style="width: 80%; padding: 8px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 4px;">
+                        <div class="custom-modal-buttons">
+                            <button type="button" class="confirm-yes">OK</button>
+                            <button type="button" class="confirm-no">Cancelar</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                const input = document.getElementById('custom-prompt-input');
+                input.focus();
+                input.select();
+
+                const handleResult = (result) => {
+                    document.body.removeChild(modal);
+                    resolve(result);
+                };
+
+                modal.querySelector('.confirm-yes').onclick = () => handleResult(input.value);
+                modal.querySelector('.confirm-no').onclick = () => handleResult(null);
+                input.onkeypress = (e) => {
+                    if (e.key === 'Enter') {
+                        modal.querySelector('.confirm-yes').click();
+                    }
+                };
+            });
+        }
+        
+        /**
+         * Converte coordenadas GPS do formato Graus, Minutos, Segundos (DMS) para Graus Decimais (DD).
+         * @param {Array<number>} dms - Um array no formato [graus, minutos, segundos].
+         * @param {string} ref - A referência de direção ('N', 'S', 'E', 'W').
+         * @returns {number} A coordenada em graus decimais.
+         */
+        function converterDMSToDD(dms, ref) {
+            if (!dms || dms.length !== 3) return NaN;
+            
+            let dd = dms[0] + dms[1] / 60 + dms[2] / 3600;
+            
+            if (ref === 'S' || ref === 'W') {
+                dd = dd * -1;
+            }
+            return dd;
+        }
+
+        // --- GESTÃO DE TEMA ---
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('relatorioTheme', newTheme);
+            updateThemeToggle(newTheme);
+        }
+        
+        function updateThemeToggle(theme) {
+            const button = document.querySelector('.theme-toggle');
+            button.textContent = theme === 'light' ? '🌙' : '☀️';
+            button.title = theme === 'light' ? 'Ativar modo escuro' : 'Ativar modo claro';
+        }
+        
+        // --- LÓGICA DO FORMULÁRIO INICIAL ---
+
+        function fileToPromise(file, readAs) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                switch (readAs) {
+                    case 'arrayBuffer':
+                        reader.readAsArrayBuffer(file);
+                        break;
+                    case 'text':
+                        reader.readAsText(file);
+                        break;
+                    case 'base64':
+                    default:
+                        reader.readAsDataURL(file);
+                        break;
+                }
+            });
+        }
+        
+        async function compressImage(base64Str, maxSize = 1920) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = base64Str;
+                img.onload = () => {
+                    if (img.width <= maxSize && img.height <= maxSize) {
+                        resolve(base64Str);
+                        return;
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    let { width, height } = img;
+
+                    if (width > height) {
+                        if (width > maxSize) {
+                            height *= maxSize / width;
+                            width = maxSize;
+                        }
+                    } else {
+                        if (height > maxSize) {
+                            width *= maxSize / height;
+                            height = maxSize;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.85)); 
+                };
+                 img.onerror = () => resolve(base64Str);
+            });
+        }
+
+        async function carregarLogotipo(ficheiro) {
+            if (!ficheiro) return;
+            logotipoBase64 = await fileToPromise(ficheiro, 'base64');
+            document.getElementById('logo-preview-img').src = logotipoBase64;
+            document.getElementById('logo-preview-container').style.display = 'block';
+        }
+        
+        async function carregarRodape(ficheiro) {
+            if (!ficheiro) return;
+            rodapeBase64 = await fileToPromise(ficheiro, 'base64');
+            document.getElementById('rodape-preview-img').src = rodapeBase64;
+            document.getElementById('rodape-preview-container').style.display = 'block';
+        }
+        
+        async function carregarRubrica(ficheiro) {
+            if (!ficheiro) return;
+            rubricaBase64 = await fileToPromise(ficheiro, 'base64');
+            document.getElementById('rubrica-preview-img').src = rubricaBase64;
+            document.getElementById('rubrica-preview-container').style.display = 'block';
+        }
+        
+        async function carregarRubricaAbrev(ficheiro) {
+            if (!ficheiro) return;
+            rubricaAbrevBase64 = await fileToPromise(ficheiro, 'base64');
+            document.getElementById('rubrica-abrev-preview-img').src = rubricaAbrevBase64;
+            document.getElementById('rubrica-abrev-preview-container').style.display = 'block';
+        }
+
+        function removerImagem(tipo, event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            if (tipo === 'logo') {
+                logotipoBase64 = null;
+                document.getElementById('logo-preview-img').src = '#';
+                document.getElementById('logo-preview-container').style.display = 'none';
+                document.getElementById('input-logo').value = '';
+            } else if (tipo === 'rodape') {
+                rodapeBase64 = null;
+                document.getElementById('rodape-preview-img').src = '#';
+                document.getElementById('rodape-preview-container').style.display = 'none';
+                document.getElementById('input-rodape').value = '';
+            } else if (tipo === 'rubrica') {
+                rubricaBase64 = null;
+                document.getElementById('rubrica-preview-img').src = '#';
+                document.getElementById('rubrica-preview-container').style.display = 'none';
+                document.getElementById('input-rubrica').value = '';
+            } else if (tipo === 'rubricaAbrev') {
+                rubricaAbrevBase64 = null;
+                document.getElementById('rubrica-abrev-preview-img').src = '#';
+                document.getElementById('rubrica-abrev-preview-container').style.display = 'none';
+                document.getElementById('input-rubrica-abrev').value = '';
+            }
+        }
+
+        async function adicionarFotos(ficheiros) {
+            const infoSelecao = document.getElementById('info-selecao');
+            const origText = infoSelecao.innerHTML;
+            infoSelecao.textContent = 'A processar imagens...';
+            
+            for (const fotoFile of ficheiros) {
+                const fileNameLower = fotoFile.name.toLowerCase();
+                const isHeic = fotoFile.type === 'image/heic' || fotoFile.type === 'image/heif' || fileNameLower.endsWith('.heic') || fileNameLower.endsWith('.heif');
+                
+                if (isHeic) {
+                    await showAlert(`Formato não suportado (${fotoFile.name}).\n\nFavor converter imagens para formatos comuns (JPEG, PNG, etc).`);
+                    continue; 
+                }
+
+                let coords = null;
+                try {
+                    const arrayBuffer = await fileToPromise(fotoFile, 'arrayBuffer');
+                    const tags = ExifReader.load(arrayBuffer, { expanded: true });
+
+                    if (tags && tags.gps && tags.gps.Latitude && tags.gps.Longitude) {
+                        let lat = tags.gps.Latitude;
+                        let lon = tags.gps.Longitude;
+
+                        // Se já for um número, usa diretamente (compatibilidade com o formato antigo)
+                        if (typeof lat === 'number' && typeof lon === 'number') {
+                            if (!isNaN(lat) && !isNaN(lon)) {
+                                 coords = { lat, lon };
+                            }
+                        // Se for um array (formato DMS), converte
+                        } else if (Array.isArray(lat) && Array.isArray(lon)) {
+                            const latRef = tags.gps.LatitudeRef || 'N';
+                            const lonRef = tags.gps.LongitudeRef || 'E';
+                            
+                            const latDecimal = converterDMSToDD(lat, latRef);
+                            const lonDecimal = converterDMSToDD(lon, lonRef);
+
+                            if (!isNaN(latDecimal) && !isNaN(lonDecimal)) {
+                                coords = { lat: latDecimal, lon: lonDecimal };
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Erro ao ler dados EXIF da imagem:", fotoFile.name, e);
+                }
+
+                try {
+                    const id = `foto-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+                    let base64 = await fileToPromise(fotoFile, 'base64');
+                    base64 = await compressImage(base64); 
+                    
+                    const img = new Image();
+                    img.src = base64;
+                    await new Promise(resolve => img.onload = resolve);
+                    const isPortrait = img.height > img.width;
+
+                    fotosCarregadas.push({
+                        id, nome: fotoFile.name, base64, selecionada: true, legenda: '', anotacoes: null, coords, layoutFotos: 1, isPortrait
+                    });
+                    fotosSelecionadas.push(id);
+                } catch (error) { console.error("Erro ao processar ficheiro:", fotoFile.name, error); }
+            }
+
+            infoSelecao.innerHTML = origText;
+            atualizarPreVisualizacao();
+        }
+
+        function atualizarPreVisualizacao() {
+            const container = document.getElementById('pre-visualizacao');
+            container.innerHTML = '';
+
+            const fotosOrdenadasParaRender = [];
+            const fotosNaoSelecionadas = [];
+            const fotosSelecionadasSet = new Set(fotosSelecionadas);
+
+            fotosSelecionadas.forEach(id => {
+                const foto = fotosCarregadas.find(f => f.id === id);
+                if (foto) fotosOrdenadasParaRender.push(foto);
+            });
+
+            fotosCarregadas.forEach(foto => {
+                if (!fotosSelecionadasSet.has(foto.id)) {
+                    fotosNaoSelecionadas.push(foto);
+                }
+            });
+
+            const fotosParaRenderizar = [...fotosOrdenadasParaRender, ...fotosNaoSelecionadas];
+
+            fotosParaRenderizar.forEach(foto => {
+                const div = document.createElement('div');
+                div.className = 'foto-miniatura no-select' + (foto.selecionada ? ' selecionada' : '');
+                div.dataset.fotoId = foto.id;
+                
+                div.onclick = () => mostrarFotoAmpliada(foto.id);
+                
+                const ordem = fotosSelecionadas.indexOf(foto.id) + 1;
+                
+                div.innerHTML = `<img src="${foto.base64}" alt="${foto.nome}">`;
+
+                if(foto.selecionada) {
+                    div.innerHTML += `<span class="numero-ordem">${ordem}</span>`;
+                    
+                    const controlesOrdem = document.createElement('div');
+                    controlesOrdem.className = 'controles-ordem';
+                    controlesOrdem.innerHTML = `
+                        <button type="button" class="botao-ordem" title="Mover para cima" onclick="moverFoto(event, '${foto.id}', 'cima')">▲</button>
+                        <span class="numero-ordem-display" title="Definir posição" onclick="mudarOrdemFoto(event, '${foto.id}')">${ordem}</span>
+                        <button type="button" class="botao-ordem" title="Mover para baixo" onclick="moverFoto(event, '${foto.id}', 'baixo')">▼</button>
+                    `;
+                    div.appendChild(controlesOrdem);
+                }
+                
+                const btnRemover = document.createElement('button');
+                btnRemover.className = 'botao-remover-foto';
+                btnRemover.innerHTML = '&#x1F5D1;';
+                btnRemover.title = 'Remover Fotografia';
+                btnRemover.onclick = (e) => {
+                    e.stopPropagation();
+                    removerFoto(foto.id);
+                };
+                div.appendChild(btnRemover);
+
+                const btnSelecionar = document.createElement('button');
+                btnSelecionar.className = 'botao-selecionar-foto';
+                btnSelecionar.innerHTML = '&#10003;';
+                btnSelecionar.title = 'Selecionar / Desselecionar';
+                btnSelecionar.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleFoto(foto.id);
+                };
+                div.appendChild(btnSelecionar);
+                
+                const btnRotar = document.createElement('button');
+                btnRotar.className = 'botao-rodar-foto';
+                btnRotar.innerHTML = '↻';
+                btnRotar.title = 'Rodar 90°';
+                btnRotar.onclick = (e) => {
+                    e.stopPropagation();
+                    rotarFoto(foto.id);
+                };
+                div.appendChild(btnRotar);
+
+                const controlesLayout = document.createElement('div');
+                controlesLayout.className = 'controles-layout no-select';
+                controlesLayout.innerHTML = `
+                    <label>Layout:</label>
+                    <div class="botoes-layout-grupo">
+                        <button type="button" class="botao-layout" data-layout="1" onclick="definirLayout(event, '${foto.id}', 1)">1x</button>
+                        <button type="button" class="botao-layout" data-layout="2" onclick="definirLayout(event, '${foto.id}', 2)">2x</button>
+                        <button type="button" class="botao-layout" data-layout="3" onclick="definirLayout(event, '${foto.id}', 3)">3x</button>
+                        <button type="button" class="botao-layout" data-layout="4" onclick="definirLayout(event, '${foto.id}', 4)">4x</button>
+                    </div>
+                `;
+                div.appendChild(controlesLayout);
+                controlesLayout.querySelector(`.botao-layout[data-layout="${foto.layoutFotos}"]`).classList.add('activa');
+
+                container.appendChild(div);
+            });
+
+            document.getElementById('contador-fotos').textContent = `${fotosSelecionadas.length} fotografias selecionadas`;
+        }
+        
+        function definirLayout(event, fotoId, layout) {
+            event.stopPropagation();
+            const foto = fotosCarregadas.find(f => f.id === fotoId);
+            if (foto) {
+                foto.layoutFotos = layout;
+                const layoutButtons = event.target.closest('.controles-layout').querySelectorAll('.botao-layout');
+                layoutButtons.forEach(btn => btn.classList.remove('activa'));
+                event.target.classList.add('activa');
+            }
+        }
+
+        function moverFoto(event, fotoId, direcao) {
+            event.stopPropagation(); 
+
+            const index = fotosSelecionadas.indexOf(fotoId);
+            if (index === -1) return;
+
+            if (direcao === 'cima' && index > 0) {
+                [fotosSelecionadas[index], fotosSelecionadas[index - 1]] = [fotosSelecionadas[index - 1], fotosSelecionadas[index]];
+            } else if (direcao === 'baixo' && index < fotosSelecionadas.length - 1) {
+                [fotosSelecionadas[index], fotosSelecionadas[index + 1]] = [fotosSelecionadas[index + 1], fotosSelecionadas[index]];
+            }
+
+            atualizarPreVisualizacao();
+        }
+
+        async function mudarOrdemFoto(event, fotoId) {
+            event.stopPropagation();
+
+            const totalFotos = fotosSelecionadas.length;
+            const currentIndex = fotosSelecionadas.indexOf(fotoId) + 1;
+            
+            const novaPosicaoStr = await showPrompt(`Mudar a posição da foto. Posição atual: ${currentIndex}.\nInsira a nova posição (1 a ${totalFotos}):`, String(currentIndex));
+
+            if (novaPosicaoStr === null) return;
+
+            const novaPosicao = parseInt(novaPosicaoStr, 10);
+
+            if (isNaN(novaPosicao) || novaPosicao < 1 || novaPosicao > totalFotos) {
+                await showAlert('Posição inválida. Por favor, insira um número entre 1 e ' + totalFotos);
+                return;
+            }
+
+            const itemMovido = fotosSelecionadas.splice(currentIndex - 1, 1)[0];
+            fotosSelecionadas.splice(novaPosicao - 1, 0, itemMovido);
+
+            atualizarPreVisualizacao();
+        }
+
+        function rotarFoto(fotoId) {
+            const foto = fotosCarregadas.find(f => f.id === fotoId);
+            if (!foto) return;
+            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = () => {
+                canvas.width = img.height;
+                canvas.height = img.width;
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate(Math.PI / 2);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+                foto.base64 = canvas.toDataURL('image/jpeg', 0.9);
+                
+                foto.isPortrait = !foto.isPortrait; 
+
+                atualizarPreVisualizacao();
+                const imgRelatorio = document.getElementById(`img-${foto.id}`);
+                if (imgRelatorio) {
+                    imgRelatorio.src = foto.base64;
+                    if (foto.isPortrait) {
+                        imgRelatorio.classList.add('portrait');
+                    } else {
+                        imgRelatorio.classList.remove('portrait');
+                    }
+                    setTimeout(() => inicializarCanvas(foto.id), 100);
+                }
+            };
+            
+            img.src = foto.base64;
+        }
+        
+        function removerFoto(fotoId) {
+            fotosCarregadas = fotosCarregadas.filter(f => f.id !== fotoId);
+            fotosSelecionadas = fotosSelecionadas.filter(id => id !== fotoId);
+            atualizarPreVisualizacao();
+        }
+
+        function toggleFoto(id) {
+            const foto = fotosCarregadas.find(f => f.id === id);
+            if (!foto) return;
+            foto.selecionada = !foto.selecionada;
+            if (foto.selecionada) {
+                if (!fotosSelecionadas.includes(id)) {
+                    fotosSelecionadas.push(id);
+                }
+            } else {
+                fotosSelecionadas = fotosSelecionadas.filter(fId => fId !== id);
+            }
+            atualizarPreVisualizacao();
+        }
+        
+        function mostrarFotoAmpliada(fotoId) {
+            const foto = fotosCarregadas.find(f => f.id === fotoId);
+            if (!foto) return;
+
+            const modal = document.getElementById('modal-foto-ampliada');
+            const modalImg = document.getElementById('img-ampliada');
+
+            modal.style.display = 'block';
+            modalImg.src = foto.base64;
+        }
+
+        function fecharFotoAmpliada() {
+            const modal = document.getElementById('modal-foto-ampliada');
+            modal.style.display = 'none';
+        }
+
+
+        function limparFormulario() {
+            document.getElementById('form-relatorio').reset();
+            fotosCarregadas = [];
+            fotosSelecionadas = [];
+            logotipoBase64 = null;
+            rodapeBase64 = null;
+            rubricaBase64 = null;
+            rubricaAbrevBase64 = null;
+            document.getElementById('logo-preview-container').style.display = 'none';
+            document.getElementById('rodape-preview-container').style.display = 'none';
+            document.getElementById('rubrica-preview-container').style.display = 'none';
+            document.getElementById('rubrica-abrev-preview-container').style.display = 'none';
+            document.getElementById('data').valueAsDate = new Date();
+            document.getElementById('subtitulo-relatorio').value = 'Registo Fotográfico de campo';
+            atualizarPreVisualizacao();
+        }
+
+        // --- GERAÇÃO DO RELATÓRIO ---
+        async function gerarRelatorio() {
+            if (fotosSelecionadas.length === 0) {
+                await showAlert('Por favor, selecione pelo menos uma fotografia.');
+                return;
+            }
+
+            dadosRelatorio = {
+                titulo: document.getElementById('titulo').value,
+                subtitulo: document.getElementById('subtitulo-relatorio').value,
+                numero: document.getElementById('numero').value,
+                data: document.getElementById('data').value,
+                cliente: document.getElementById('cliente').value,
+                descricao: document.getElementById('descricao').value,
+                observacoes: document.getElementById('observacoes').value,
+                elaboradoPor: document.getElementById('elaborado-por').value,
+                camadaMapa: document.getElementById('camada-mapa').value,
+                zoomMapa: document.getElementById('zoom-mapa').value,
+                logotipo: logotipoBase64,
+                rodape: rodapeBase64,
+                rubrica: rubricaBase64,
+                rubricaAbrev: rubricaAbrevBase64
+            };
+
+            document.getElementById('pagina-inicial').style.display = 'none';
+            document.getElementById('relatorio-gerado').style.display = 'block';
+
+            gerarPaginasRelatorio();
+        }
+        
+        function renumerarPaginas() {
+            const paginas = document.querySelectorAll('#paginas-relatorio .pagina-a4');
+            paginas.forEach((p, index) => {
+                 const pNumElement = p.querySelector('.rodape-pagina p');
+                 if(pNumElement) {
+                     pNumElement.textContent = `${dadosRelatorio.titulo} | Página ${index + 1}`;
+                 }
+            });
+        }
+
+        async function dividirTextoEmPaginas(texto, maxHeight, elementoMedida) {
+            const paginas = [];
+            if (!texto || texto.trim() === '') return paginas;
+
+            const medidor = elementoMedida.cloneNode(true);
+            document.body.appendChild(medidor);
+            Object.assign(medidor.style, {
+                position: 'absolute',
+                left: '-9999px',
+                top: '-9999px',
+                visibility: 'hidden',
+                height: 'auto',
+                maxHeight: 'none'
+            });
+            const pMedidor = medidor.querySelector('p');
+
+            const palavras = texto.split(/(\s+)/);
+            let textoPaginaAtual = '';
+            
+            for (let i = 0; i < palavras.length; i++) {
+                const palavra = palavras[i];
+                const textoTemporario = textoPaginaAtual + palavra;
+                pMedidor.textContent = textoTemporario;
+                
+                if (medidor.scrollHeight > maxHeight) {
+                    if (textoPaginaAtual.trim() !== '') {
+                        paginas.push(textoPaginaAtual);
+                    }
+                    textoPaginaAtual = palavra;
+                } else {
+                    textoPaginaAtual = textoTemporario;
+                }
+            }
+
+            if (textoPaginaAtual.trim() !== '') {
+                paginas.push(textoPaginaAtual);
+            }
+
+            document.body.removeChild(medidor);
+            return paginas;
+        }
+
+        async function gerarPaginasRelatorio() {
+            const container = document.getElementById('paginas-relatorio');
+            container.innerHTML = '';
+            
+            let paginasDOM = [];
+            
+            const mmToPx = (mm) => mm * 3.7795;
+            const alturaUtilConteudo = mmToPx(297 - 20 - 20 - 35);
+            const BUFFER_INFERIOR_DESC = 130;
+            const BUFFER_INFERIOR_OBS = 185;
+
+            // --- 1. Gerar Capa e lidar com a Descrição ---
+            const capa = criarPaginaCapa();
+            const conteudoCapa = capa.querySelector('.conteudo-pagina');
+            const cabecalhoRelatorio = conteudoCapa.querySelector('.cabecalho-relatorio');
+            const descBlocoOriginal = cabecalhoRelatorio.querySelector('.descricao-bloco');
+            descBlocoOriginal.querySelector('p').textContent = '';
+
+            container.appendChild(capa);
+            const alturaFixaCapa = cabecalhoRelatorio.offsetHeight;
+            const maxHeightDescCapa = alturaUtilConteudo - alturaFixaCapa - BUFFER_INFERIOR_DESC;
+            
+            const paginasTextoDescricao = await dividirTextoEmPaginas(dadosRelatorio.descricao, maxHeightDescCapa, descBlocoOriginal);
+            
+            if (paginasTextoDescricao.length > 0) {
+                descBlocoOriginal.querySelector('p').textContent = paginasTextoDescricao[0];
+            } else {
+                descBlocoOriginal.style.display = 'none';
+            }
+            container.removeChild(capa);
+            paginasDOM.push(capa);
+
+            // --- Lidar com páginas de continuação da descrição ---
+            if (paginasTextoDescricao.length > 1) {
+                const textoRestante = paginasTextoDescricao.slice(1).join(' ');
+                
+                const paginaTemp = criarPaginaGenerica(0);
+                const elementoMedidaCont = document.createElement('div');
+                elementoMedidaCont.className = 'descricao-bloco';
+                elementoMedidaCont.innerHTML = `<h3>Descrição do Registo Fotográfico (continuação)</h3><p></p>`;
+                paginaTemp.querySelector('.conteudo-pagina').appendChild(elementoMedidaCont);
+                
+                container.appendChild(paginaTemp);
+                const alturaFixaCont = elementoMedidaCont.querySelector('h3').offsetHeight + 32;
+                const maxHeightDescCont = alturaUtilConteudo - alturaFixaCont - BUFFER_INFERIOR_DESC;
+                
+                const paginasDescContinuacao = await dividirTextoEmPaginas(textoRestante, maxHeightDescCont, elementoMedidaCont);
+                container.removeChild(paginaTemp);
+
+                for (const textoPagina of paginasDescContinuacao) {
+                    const paginaDesc = criarPaginaGenerica(0, true);
+                    paginaDesc.querySelector('.conteudo-pagina').innerHTML = `
+                        <div class="descricao-bloco">
+                            <h3>Descrição do Registo Fotográfico (continuação)</h3>
+                            <p>${textoPagina}</p>
+                        </div>`;
+                    paginasDOM.push(paginaDesc);
+                }
+            }
+
+            // --- 2. Páginas de Fotos (Lógica de Layout ATUALIZADA) ---
+            const fotosOrdenadas = fotosSelecionadas.map(id => fotosCarregadas.find(f => f.id === id));
+            let currentPhotoIndex = 0;
+
+            while (currentPhotoIndex < fotosOrdenadas.length) {
+                const fotoPrincipal = fotosOrdenadas[currentPhotoIndex];
+                const layoutDoGrupo = fotoPrincipal.layoutFotos;
+                const fotosParaPagina = [fotoPrincipal];
+
+                let proximoIndex = currentPhotoIndex + 1;
+                while (
+                    proximoIndex < fotosOrdenadas.length &&
+                    fotosParaPagina.length < layoutDoGrupo &&
+                    fotosOrdenadas[proximoIndex].layoutFotos === layoutDoGrupo
+                ) {
+                    fotosParaPagina.push(fotosOrdenadas[proximoIndex]);
+                    proximoIndex++;
+                }
+                
+                const paginaFotos = criarPaginaFotos(fotosParaPagina, 0, currentPhotoIndex); 
+                paginasDOM.push(paginaFotos);
+
+                currentPhotoIndex += fotosParaPagina.length; 
+            }
+
+            // --- 3. Páginas de Observações (se houver) ---
+            if (dadosRelatorio.observacoes && dadosRelatorio.observacoes.trim() !== '') {
+                const paginaTempObs = criarPaginaGenerica(0);
+                const elementoMedidaObs = document.createElement('div');
+                elementoMedidaObs.className = 'observacoes-bloco';
+                elementoMedidaObs.innerHTML = `<h3>Observações Finais</h3><p></p>`;
+                paginaTempObs.querySelector('.conteudo-pagina').appendChild(elementoMedidaObs);
+                
+                container.appendChild(paginaTempObs);
+                const alturaFixaObs = elementoMedidaObs.querySelector('h3').offsetHeight + 32;
+                const maxHeightObs = alturaUtilConteudo - alturaFixaObs - BUFFER_INFERIOR_OBS;
+                container.removeChild(paginaTempObs);
+
+                const paginasTextoObservacoes = await dividirTextoEmPaginas(dadosRelatorio.observacoes, maxHeightObs, elementoMedidaObs);
+
+                for (let i = 0; i < paginasTextoObservacoes.length; i++) {
+                    const textoPagina = paginasTextoObservacoes[i];
+                    const paginaObs = criarPaginaGenerica(0);
+                    const tituloObs = (i === 0) ? "Observações Finais" : "Observações Finais (continuação)";
+                    paginaObs.querySelector('.conteudo-pagina').innerHTML = `
+                        <div class="observacoes-bloco">
+                            <h3>${tituloObs}</h3>
+                            <p>${textoPagina}</p>
+                        </div>`;
+                    paginasDOM.push(paginaObs);
+                }
+            }
+            
+            // --- 4. Página de Estatísticas ---
+            const paginaEstatisticas = criarPaginaEstatisticas(0);
+            paginasDOM.push(paginaEstatisticas);
+            
+            // --- 5. Página de Mapa Detalhado ---
+            const paginaMapaDetalhado = criarPaginaMapaDetalhado(0);
+            paginasDOM.push(paginaMapaDetalhado);
+            
+            // --- Renderização Final ---
+            container.innerHTML = '';
+            paginasDOM.forEach(p => container.appendChild(p));
+            renumerarPaginas();
+
+            setTimeout(() => {
+                document.querySelectorAll('textarea[data-foto-id]').forEach(ajustarAlturaTextarea);
+                fotosOrdenadas.forEach(foto => foto && inicializarCanvas(foto.id));
+                inicializarMapaEstatisticas(document);
+                inicializarMapaDetalhado(document);
+            }, 300);
+        }
+
+        function criarPaginaGenerica(numeroPagina, isContinuacao = false) {
+            const pagina = document.createElement('div');
+            pagina.className = 'pagina-a4';
+            const logoHtml = dadosRelatorio.logotipo ? `<img src="${dadosRelatorio.logotipo}" alt="Logótipo" class="logotipo-pagina">` : '';
+            const cabecalhoHtml = `<div class="cabecalho-pagina">${dadosRelatorio.subtitulo || ''}</div>`;
+            const rodapeVisualHtml = dadosRelatorio.rodape 
+                ? `<div class="rodape-visual"><img src="${dadosRelatorio.rodape}" alt="Rodapé"></div>` 
+                : `<div class="rodape-visual"><div class="linha-rodape"></div></div>`;
+            const rubricaAbrevHtml = dadosRelatorio.rubricaAbrev 
+                ? `<div class="rubrica-abrev-pagina"><img src="${dadosRelatorio.rubricaAbrev}" alt="Rubrica"></div>` 
+                : '';
+
+            pagina.innerHTML = `
+                ${isContinuacao ? '' : logoHtml}
+                ${cabecalhoHtml}
+                <div class="conteudo-pagina"></div>
+                ${rubricaAbrevHtml}
+                <footer class="rodape-pagina">
+                    <p>${dadosRelatorio.titulo} | Página ${numeroPagina}</p>
+                </footer>
+                ${rodapeVisualHtml}`;
+            return pagina;
+        }
+
+        function criarPaginaCapa() {
+            const pagina = document.createElement('div');
+            pagina.className = 'pagina-a4';
+            const logoHtml = dadosRelatorio.logotipo ? `<img src="${dadosRelatorio.logotipo}" alt="Logótipo" class="logotipo-pagina">` : '';
+            const cabecalhoHtml = `<div class="cabecalho-pagina">${dadosRelatorio.subtitulo || ''}</div>`;
+            const rodapeVisualHtml = dadosRelatorio.rodape 
+                ? `<div class="rodape-visual"><img src="${dadosRelatorio.rodape}" alt="Rodapé"></div>` 
+                : `<div class="rodape-visual"><div class="linha-rodape"></div></div>`;
+            
+            pagina.innerHTML = `
+                ${logoHtml}
+                ${cabecalhoHtml}
+                <div class="conteudo-pagina"></div>
+                <footer class="rodape-pagina">
+                    <p>${dadosRelatorio.titulo} | Página 1</p>
+                </footer>
+                ${rodapeVisualHtml}`;
+            
+            const dataFormatada = new Date(dadosRelatorio.data + 'T00:00:00').toLocaleDateString('pt-PT');
+            
+            const conteudoCapa = document.createElement('div');
+            conteudoCapa.className = 'cabecalho-relatorio';
+            conteudoCapa.innerHTML = `
+                <h1>${dadosRelatorio.titulo}</h1>
+                <div class="detalhes-relatorio">
+                    <div class="detalhe-item"><strong>Nº do Relatório:</strong> ${dadosRelatorio.numero}</div>
+                    <div class="detalhe-item"><strong>Data:</strong> ${dataFormatada}</div>
+                    <div class="detalhe-item"><strong>Cliente:</strong> ${dadosRelatorio.cliente || 'N/A'}</div>
+                    <div class="detalhe-item"><strong>Elaborado por:</strong> ${dadosRelatorio.elaboradoPor || 'N/A'}</div>
+                </div>
+                <div class="descricao-bloco"><p>${dadosRelatorio.descricao}</p></div>`;
+            
+            pagina.querySelector('.conteudo-pagina').appendChild(conteudoCapa);
+            
+            if (dadosRelatorio.rubrica) {
+                const rubricaDiv = document.createElement('div');
+                rubricaDiv.className = 'rubrica-capa';
+                rubricaDiv.innerHTML = `<img src="${dadosRelatorio.rubrica}" alt="Rubrica">`;
+                pagina.appendChild(rubricaDiv);
+            }
+            return pagina;
+        }
+
+        function criarPaginaFotos(fotos, numeroPagina, indexInicial) {
+            const pagina = criarPaginaGenerica(numeroPagina);
+            const conteudoPagina = pagina.querySelector('.conteudo-pagina');
+            
+            const layout = fotos[0] ? fotos[0].layoutFotos : 1;
+
+            let gridColumns = 'repeat(1, 1fr)';
+            if (layout === 2) {
+                gridColumns = 'repeat(2, 1fr)';
+            } else if (layout === 3) {
+                gridColumns = 'repeat(3, 1fr)';
+            } else if (layout === 4) {
+                gridColumns = 'repeat(2, 1fr)';
+            }
+
+            conteudoPagina.style.display = 'grid';
+            conteudoPagina.style.gridTemplateColumns = gridColumns;
+            conteudoPagina.style.gap = '15px';
+            conteudoPagina.style.alignItems = 'start';
+            conteudoPagina.style.alignContent = 'start';
+
+            fotos.forEach((foto, idx) => {
+                const numeroFoto = indexInicial + idx + 1;
+                const mapaBtnHtml = foto.coords ? `<button type="button" class="botao-mapa no-print" onclick="irParaFotoNoMapa('${foto.id}')">📍 Ver no Mapa</button>` : '';
+                const mapaLinkExportHtml = foto.coords ? `<span class="export-map-link-placeholder" data-foto-id="${foto.id}"></span>` : '';
+
+                const bloco = document.createElement('div');
+                bloco.className = 'foto-bloco';
+                bloco.id = `bloco-${foto.id}`;
+                bloco.style.marginBottom = '0';
+                
+                bloco.classList.add(`layout-${layout}`);
+                
+                if (layout === 4) {
+                    bloco.style.gridColumn = 'span 1';
+                }
+                
+                const imgClass = foto.isPortrait ? 'portrait' : '';
+
+                bloco.innerHTML = `
+                    <div class="foto-container">
+                        <img src="${foto.base64 || ''}" alt="Fotografia ${numeroFoto}" id="img-${foto.id}" class="no-select ${imgClass}">
+                        <canvas class="canvas-anotacoes" id="canvas-${foto.id}"></canvas>
+                        <div class="ferramentas-anotacao no-print" id="ferramentas-${foto.id}">
+                            <button type="button" class="ferramenta-btn" onclick="selecionarFerramenta(event, '${foto.id}', 'seta')">Seta</button>
+                            <button type="button" class="ferramenta-btn" onclick="selecionarFerramenta(event, '${foto.id}', 'circulo')">Círculo</button>
+                            <button type="button" class="ferramenta-btn" onclick="selecionarFerramenta(event, '${foto.id}', 'texto')">Texto</button>
+                            <input type="color" id="cor-${foto.id}" value="#FF5722" onchange="mudarCor(this.value)" title="Cor" style="width: 30px; height: 30px; border: none; cursor: pointer;">
+                            <button type="button" class="ferramenta-btn" onclick="desfazerAnotacao('${foto.id}')">↶</button>
+                            <button type="button" class="ferramenta-btn" onclick="refazerAnotacao('${foto.id}')">↷</button>
+                            <button type="button" class="ferramenta-btn" onclick="limparAnotacoes(event, '${foto.id}')">Limpar</button>
+                        </div>
+                    </div>
+                    <p>
+                        <strong>Fotografia ${numeroFoto}</strong>
+                        ${mapaBtnHtml}
+                        ${mapaLinkExportHtml}
+                        <button type="button" class="botao botao-pequeno botao-secundario no-print" onclick="rotarFoto('${foto.id}')" title="Rodar imagem">↻</button>
+                        <button type="button" class="botao botao-pequeno botao-anotacao no-print" onclick="toggleAnotacoes('${foto.id}')">✏️ Anotar</button>
+                        <button type="button" class="botao botao-pequeno botao-gemini no-print" onclick="handleGerarLegenda('${foto.id}')">Gerar/Refinar ✨</button>
+                        <button type="button" class="botao botao-pequeno botao-secundario no-print" onclick="mostrarSeletorLegendas('${foto.id}')">📋 Legendas Típicas</button>
+                        <button type="button" class="botao botao-pequeno no-print" style="background-color: #d9534f; color: white;" onclick="removerFotoDoRelatorio('${foto.id}')" title="Remover foto do relatório">🗑️ Remover Foto</button>
+                    </p>
+                    <textarea placeholder="Insira notas e clique em 'Gerar/Refinar'..."
+                        data-foto-id="${foto.id}"
+                        oninput="onTextareaInput(this)">${foto.legenda || ''}</textarea>`;
+                conteudoPagina.appendChild(bloco);
+            });
+            return pagina;
+        }
+        
+        function criarPaginaEstatisticas(numeroPagina) {
+            const pagina = criarPaginaGenerica(numeroPagina);
+            const conteudoPagina = pagina.querySelector('.conteudo-pagina');
+            const fotosComGPS = fotosSelecionadas.map(id => fotosCarregadas.find(f => f.id === id)).filter(f => f && f.coords);
+
+            conteudoPagina.innerHTML = `
+                <h3>Estatísticas e Distribuição Geográfica</h3>
+                <div id="mapa-heatmap" class="map-container"></div>
+                <div class="estatisticas-texto">
+                    <p><strong>Total de Fotos Selecionadas:</strong> ${fotosSelecionadas.length}</p>
+                    <p><strong>Fotos com Dados GPS:</strong> ${fotosComGPS.length}</p>
+                    <p><strong>Fotos sem Dados GPS:</strong> ${fotosSelecionadas.length - fotosComGPS.length}</p>
+                </div>
+                <p class="info-aviso" style="font-size: 0.7rem; text-align: center; margin-top: 5px;">
+                    Nota: A geolocalização das fotos assentou na precisão instantânea do GPS do dispositivo utilizado na altura da recolha da imagem, sem recurso a médias ou RTK, podendo nalguns casos conter incertezas de várias dezenas de metros.
+                </p>
+            `;
+            return pagina;
+        }
+
+        function criarPaginaMapaDetalhado(numeroPagina) {
+            const pagina = criarPaginaGenerica(numeroPagina);
+            pagina.querySelector('.conteudo-pagina').innerHTML = `
+                <h3>Localização Detalhada das Fotografias</h3>
+                <div id="mapa-detalhado" class="map-container"></div>
+                <p class="info-aviso" style="font-size: 0.7rem; text-align: center; margin-top: 5px;">
+                    Nota: A geolocalização das fotos assentou na precisão instantânea do GPS do dispositivo utilizado na altura da recolha da imagem, sem recurso a médias ou RTK, podendo nalguns casos conter incertezas de várias dezenas de metros.
+                </p>
+            `;
+            return pagina;
+        }
+        
+        function inicializarMapaEstatisticas(docContext = document) {
+            const fotosComGPS = fotosSelecionadas
+                .map(id => fotosCarregadas.find(f => f.id == id))
+                .filter(f => f && f.coords)
+                .map(f => [f.coords.lat, f.coords.lon]);
+
+            const mapContainer = docContext.getElementById('mapa-heatmap');
+            if (!mapContainer) return;
+
+            if (fotosComGPS.length > 0) {
+                const map = L.map(mapContainer).setView(fotosComGPS[0], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+
+                L.heatLayer(fotosComGPS, {radius: 25}).addTo(map);
+                
+                const bounds = L.latLngBounds(fotosComGPS);
+                map.fitBounds(bounds.pad(0.1));
+            } else {
+                mapContainer.innerHTML = '<p style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; background:rgba(255,255,255,0.7); padding:10px; border-radius:5px;">Nenhuma foto com dados de GPS para exibir no mapa.</p>';
+            }
+        }
+        
+        function inicializarMapaDetalhado(docContext = document) {
+            const fotosComGPS = fotosSelecionadas
+                .map((id, index) => ({ foto: fotosCarregadas.find(f => f.id == id), numero: index + 1 }))
+                .filter(item => item.foto && item.foto.coords);
+
+            const mapContainer = docContext.getElementById('mapa-detalhado');
+            if (!mapContainer) return;
+            
+            if (docContext === document && mapaDetalhadoInstance) {
+                mapaDetalhadoInstance.remove();
+                mapaDetalhadoInstance = null;
+            }
+            
+            if (fotosComGPS.length > 0) {
+                const map = L.map(mapContainer, { maxZoom: 22 }).setView([fotosComGPS[0].foto.coords.lat, fotosComGPS[0].foto.coords.lon], 16);
+                
+                if (docContext === document) {
+                    mapaDetalhadoInstance = map;
+                }
+
+                const camada = dadosRelatorio.camadaMapa || 'padrao';
+                let tileLayer;
+                if (camada === 'satelite') {
+                    tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                        maxZoom: 22
+                    });
+                } else if (camada === 'topografico') {
+                    tileLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+                        maxZoom: 17
+                    });
+                } else {
+                    tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                        maxZoom: 22
+                    });
+                }
+                tileLayer.addTo(map);
+                
+                fotosComGPS.forEach(item => {
+                    const icon = L.divIcon({
+                        className: 'leaflet-div-icon',
+                        html: `<span>${item.numero}</span>`,
+                        iconSize: [24, 24]
+                    });
+                    const marker = L.marker([item.foto.coords.lat, item.foto.coords.lon], {icon: icon})
+                     .addTo(map)
+                     .bindTooltip(item.foto.legenda || `Fotografia ${item.numero}`);
+                    
+                    if (docContext === document) {
+                        marker.on('click', () => {
+                            docContext.getElementById(`bloco-${item.foto.id}`).scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        });
+                    }
+                });
+                
+                const zoomLevel = dadosRelatorio.zoomMapa || 'auto';
+                const bounds = L.latLngBounds(fotosComGPS.map(item => [item.foto.coords.lat, item.foto.coords.lon]));
+                
+                if (zoomLevel === 'auto') {
+                    map.fitBounds(bounds.pad(0.1));
+                } else {
+                    map.setView(bounds.getCenter(), parseInt(zoomLevel, 10));
+                }
+
+            } else {
+                mapContainer.innerHTML = '<p style="text-align:center; padding-top: 50%;">Nenhuma foto com dados de GPS para exibir no mapa.</p>';
+            }
+        }
+        
+        function irParaFotoNoMapa(fotoId) {
+            const foto = fotosCarregadas.find(f => f.id == fotoId);
+            if (foto && foto.coords && mapaDetalhadoInstance) {
+                const mapContainer = document.getElementById('mapa-detalhado');
+                mapContainer.scrollIntoView({ behavior: 'smooth' });
+                mapaDetalhadoInstance.setView([foto.coords.lat, foto.coords.lon], 19);
+            }
+        }
+        
+        function onTextareaInput(textarea) {
+            ajustarAlturaTextarea(textarea);
+            const fotoId = textarea.dataset.fotoId;
+            const foto = fotosCarregadas.find(f => f.id == fotoId);
+            if(foto) foto.legenda = textarea.value;
+        }
+        
+        function ajustarAlturaTextarea(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight) + 'px';
+        }
+
+        // --- LÓGICA DE ANOTAÇÕES (CANVAS) ---
+
+        function toggleAnotacoes(fotoId) {
+            document.getElementById(`ferramentas-${fotoId}`).classList.toggle('activa');
+            if (!desenhoActual.historico[fotoId]) {
+                desenhoActual.historico[fotoId] = [];
+                desenhoActual.historicoIndex[fotoId] = -1;
+            }
+        }
+        
+        function mudarCor(cor) {
+            desenhoActual.cor = cor;
+        }
+        
+        function inicializarCanvas(fotoId) {
+            const canvas = document.getElementById(`canvas-${fotoId}`);
+            const img = document.getElementById(`img-${fotoId}`);
+            const container = img.parentElement;
+            if (!canvas || !img || !container) return;
+
+            const resizeAndPositionCanvas = () => {
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+
+                const containerRatio = container.clientWidth / container.clientHeight;
+                const imgRatio = img.naturalWidth / img.naturalHeight;
+
+                let finalWidth, finalHeight, offsetX, offsetY;
+
+                if (imgRatio > containerRatio) {
+                    finalWidth = container.clientWidth;
+                    finalHeight = finalWidth / imgRatio;
+                    offsetX = 0;
+                    offsetY = (container.clientHeight - finalHeight) / 2;
+                } else {
+                    finalHeight = container.clientHeight;
+                    finalWidth = finalHeight * imgRatio;
+                    offsetY = 0;
+                    offsetX = (container.clientWidth - finalWidth) / 2;
+                }
+
+                canvas.style.width = `${finalWidth}px`;
+                canvas.style.height = `${finalHeight}px`;
+                canvas.style.top = `${offsetY}px`;
+                canvas.style.left = `${offsetX}px`;
+                
+                desenharAnotacoesGuardadas(fotoId);
+            };
+
+            const observer = new ResizeObserver(resizeAndPositionCanvas);
+            observer.observe(container);
+
+            if (img.complete && img.naturalWidth > 0) {
+                resizeAndPositionCanvas();
+            } else {
+                img.onload = resizeAndPositionCanvas;
+            }
+        }
+        
+        function desenharAnotacoesGuardadas(fotoId, clear = true) {
+            const foto = fotosCarregadas.find(f => f.id == fotoId);
+            const canvas = document.getElementById(`canvas-${fotoId}`);
+            if (foto && canvas && canvas.width > 0) {
+                const ctx = canvas.getContext('2d');
+                if(clear) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+                if (foto.anotacoes) {
+                    const imgData = new Image();
+                    imgData.onload = () => {
+                        ctx.drawImage(imgData, 0, 0, canvas.width, canvas.height);
+                    };
+                    imgData.src = foto.anotacoes;
+                }
+            }
+        }
+
+        function selecionarFerramenta(event, fotoId, ferramenta) {
+            event.stopPropagation();
+            const ferramentasContainer = document.getElementById(`ferramentas-${fotoId}`);
+            const botaoClicado = event.target;
+            const canvas = document.getElementById(`canvas-${fotoId}`);
+            
+            if (botaoClicado.classList.contains('activa')) {
+                botaoClicado.classList.remove('activa');
+                desenhoActual.ferramenta = null;
+                desligarListenersCanvas(canvas);
+            } else {
+                ferramentasContainer.querySelectorAll('.ferramenta-btn.activa').forEach(b => b.classList.remove('activa'));
+                botaoClicado.classList.add('activa');
+                desenhoActual.fotoId = fotoId;
+                desenhoActual.ferramenta = ferramenta;
+                canvas.style.cursor = ferramenta === 'texto' ? 'text' : 'crosshair';
+                ligarListenersCanvas(canvas);
+            }
+        }
+
+        function ligarListenersCanvas(canvas) {
+            canvas.style.pointerEvents = 'auto';
+            canvas.onmousedown = iniciarDesenho;
+            canvas.onmousemove = desenhar;
+            canvas.onmouseup = finalizarDesenho;
+            canvas.onmouseleave = finalizarDesenho;
+        }
+        
+        function desligarListenersCanvas(canvas) {
+            if(!canvas) return;
+            canvas.style.pointerEvents = 'none';
+            canvas.style.cursor = 'default';
+            desenhoActual.ferramenta = null;
+            desenhoActual.fotoId = null;
+            canvas.onmousedown = null;
+            canvas.onmousemove = null;
+            canvas.onmouseup = null;
+            canvas.onmouseleave = null;
+        }
+        
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return { 
+                x: (evt.clientX - rect.left) * scaleX, 
+                y: (evt.clientY - rect.top) * scaleY 
+            };
+        }
+
+        async function iniciarDesenho(e) {
+            if (!desenhoActual.ferramenta || e.button !== 0) return;
+            e.preventDefault();
+            
+            const canvas = document.getElementById(`canvas-${desenhoActual.fotoId}`);
+            const pos = getMousePos(canvas, e);
+            
+            desenhoActual.isDrawing = true;
+            desenhoActual.startX = pos.x;
+            desenhoActual.startY = pos.y;
+            
+            if (desenhoActual.ferramenta === 'texto') {
+                const texto = await showPrompt('Digite o texto da anotação:');
+                if (texto) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = desenhoActual.cor;
+                    const fontSize = Math.max(16, Math.round(canvas.width / 100)); 
+                    ctx.font = `bold ${fontSize}px Arial`;
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(texto, pos.x, pos.y);
+                    guardarAnotacoes(desenhoActual.fotoId);
+                    adicionarAoHistorico(desenhoActual.fotoId);
+                }
+                desenhoActual.isDrawing = false;
+            }
+        }
+        
+        function desenhar(e) {
+            if (!desenhoActual.isDrawing) return;
+            
+            const canvas = document.getElementById(`canvas-${desenhoActual.fotoId}`);
+            const ctx = canvas.getContext('2d');
+            const pos = getMousePos(canvas, e);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            desenharAnotacoesGuardadas(desenhoActual.fotoId, false);
+            
+            ctx.strokeStyle = desenhoActual.cor;
+            ctx.fillStyle = desenhoActual.cor;
+            ctx.lineWidth = Math.max(2.5, canvas.width / 400);
+            
+            if (desenhoActual.ferramenta === 'seta') {
+                desenharSeta(ctx, desenhoActual.startX, desenhoActual.startY, pos.x, pos.y);
+            } else if (desenhoActual.ferramenta === 'circulo') {
+                const radius = Math.sqrt(Math.pow(pos.x - desenhoActual.startX, 2) + Math.pow(pos.y - desenhoActual.startY, 2));
+                ctx.beginPath();
+                ctx.arc(desenhoActual.startX, desenhoActual.startY, radius, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+        }
+        
+        function finalizarDesenho(e) {
+             if (!desenhoActual.isDrawing) return;
+             if (e.type === 'mouseup') {
+                const canvas = document.getElementById(`canvas-${desenhoActual.fotoId}`);
+                const ctx = canvas.getContext('2d');
+                desenharAnotacoesGuardadas(desenhoActual.fotoId, false);
+                
+                const pos = getMousePos(canvas, e);
+                ctx.strokeStyle = desenhoActual.cor;
+                ctx.fillStyle = desenhoActual.cor;
+                ctx.lineWidth = Math.max(2.5, canvas.width / 400);
+
+                if (desenhoActual.ferramenta === 'seta') {
+                    desenharSeta(ctx, desenhoActual.startX, desenhoActual.startY, pos.x, pos.y);
+                } else if (desenhoActual.ferramenta === 'circulo') {
+                    const radius = Math.sqrt(Math.pow(pos.x - desenhoActual.startX, 2) + Math.pow(pos.y - desenhoActual.startY, 2));
+                    ctx.beginPath();
+                    ctx.arc(desenhoActual.startX, desenhoActual.startY, radius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                }
+
+                guardarAnotacoes(desenhoActual.fotoId);
+                adicionarAoHistorico(desenhoActual.fotoId);
+             }
+             desenhoActual.isDrawing = false;
+             desenharAnotacoesGuardadas(desenhoActual.fotoId);
+        }
+        
+        function adicionarAoHistorico(fotoId) {
+            const canvas = document.getElementById(`canvas-${fotoId}`);
+            if (!canvas) return;
+            
+            const imageData = canvas.toDataURL();
+            if (!desenhoActual.historico[fotoId]) {
+                desenhoActual.historico[fotoId] = [];
+                desenhoActual.historicoIndex[fotoId] = -1;
+            }
+            
+            desenhoActual.historico[fotoId] = desenhoActual.historico[fotoId].slice(0, desenhoActual.historicoIndex[fotoId] + 1);
+            
+            desenhoActual.historico[fotoId].push(imageData);
+            desenhoActual.historicoIndex[fotoId]++;
+            
+            if (desenhoActual.historico[fotoId].length > 20) {
+                desenhoActual.historico[fotoId].shift();
+                desenhoActual.historicoIndex[fotoId]--;
+            }
+        }
+        
+        function desfazerAnotacao(fotoId) {
+            if (!desenhoActual.historico[fotoId] || desenhoActual.historicoIndex[fotoId] <= 0) return;
+            
+            desenhoActual.historicoIndex[fotoId]--;
+            aplicarHistorico(fotoId);
+        }
+        
+        function refazerAnotacao(fotoId) {
+            if (!desenhoActual.historico[fotoId] || desenhoActual.historicoIndex[fotoId] >= desenhoActual.historico[fotoId].length - 1) return;
+            
+            desenhoActual.historicoIndex[fotoId]++;
+            aplicarHistorico(fotoId);
+        }
+        
+        function aplicarHistorico(fotoId) {
+            const canvas = document.getElementById(`canvas-${fotoId}`);
+            const ctx = canvas.getContext('2d');
+            const imageData = desenhoActual.historico[fotoId][desenhoActual.historicoIndex[fotoId]];
+            
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (imageData) {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                }
+                guardarAnotacoes(fotoId);
+            };
+            img.src = imageData || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+        }
+
+        function desenharSeta(ctx, fromx, fromy, tox, toy) {
+            const headlen = Math.max(10, ctx.canvas.width / 100);
+            const dx = tox - fromx;
+            const dy = toy - fromy;
+            const angle = Math.atan2(dy, dx);
+            ctx.beginPath();
+            ctx.moveTo(fromx, fromy);
+            ctx.lineTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.moveTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.stroke();
+        }
+
+        async function limparAnotacoes(event, fotoId) {
+            event.stopPropagation();
+            const confirmClear = await showConfirm('Tem a certeza que deseja limpar todas as anotações desta foto?');
+            if (!confirmClear) return;
+
+            const canvas = document.getElementById(`canvas-${fotoId}`);
+            if (!canvas) return;
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+            const foto = fotosCarregadas.find(f => f.id == fotoId);
+            if (foto) foto.anotacoes = null;
+            
+            desenhoActual.historico[fotoId] = [];
+            desenhoActual.historicoIndex[fotoId] = -1;
+            adicionarAoHistorico(fotoId); 
+        }
+
+        function guardarAnotacoes(fotoId) {
+            const canvas = document.getElementById(`canvas-${fotoId}`);
+            const foto = fotosCarregadas.find(f => f.id == fotoId);
+            if (foto && canvas) {
+                const context = canvas.getContext('2d');
+                const pixelBuffer = new Uint32Array(
+                    context.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+                );
+                const isEmpty = !pixelBuffer.some(color => color !== 0);
+                
+                foto.anotacoes = isEmpty ? null : canvas.toDataURL();
+            }
+        }
+        
+        // --- GEMINI API ---
+        
+        function showLoading(show, message = 'A processar...') {
+            const overlay = document.getElementById('loading-overlay');
+            if (show) {
+                overlay.textContent = message;
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+            }
+        }
+
+        async function callGeminiAPI(prompt, imageBase64 = null, maxRetries = 3) {
+            const userApiKey = document.getElementById('gemini-api-key').value.trim();
+            if (!userApiKey) {
+                await showAlert('Para usar as funcionalidades de IA, por favor insira a sua chave da API da Gemini no campo correspondente.');
+                return null;
+            }
+            
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${userApiKey}`;
+
+            let parts = [{ text: prompt }];
+            if (imageBase64) {
+                 parts.push({
+                    inlineData: {
+                        mimeType: "image/jpeg",
+                        data: imageBase64.split(',')[1]
+                    }
+                });
+            }
+
+            const payload = {
+                contents: [{ role: "user", parts: parts }]
+            };
+
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429 || response.status >= 500) {
+                        if (attempt === maxRetries - 1) throw new Error(`API Error after ${maxRetries} attempts: ${response.statusText}`);
+                        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                        await new Promise(res => setTimeout(res, delay));
+                        continue;
+                    }
+
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        console.error("API Error Body:", errorBody);
+                        throw new Error(`API Error: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        return result.candidates[0].content.parts[0].text;
+                    } else {
+                         throw new Error("Resposta da API inválida ou vazia.");
+                    }
+
+                } catch (error) {
+                    if (attempt === maxRetries - 1) {
+                        console.error("Erro ao chamar a API Gemini:", error);
+                        await showAlert("Ocorreu um erro ao comunicar com o assistente de IA. Por favor, tente novamente.");
+                        return null;
+                    }
+                }
+            }
+            return null;
+        }
+
+        async function handleAnalisarTodasAsFotos() {
+            const userApiKey = document.getElementById('gemini-api-key').value.trim();
+            if (!userApiKey) {
+                await showAlert('Para usar as funcionalidades de IA, por favor insira a sua chave da API da Gemini no campo correspondente.');
+                return;
+            }
+
+            const fotosParaAnalisar = fotosSelecionadas.map(id => fotosCarregadas.find(f => f.id === id)).filter(Boolean);
+
+            if (fotosParaAnalisar.length === 0) {
+                await showAlert("Nenhuma foto selecionada para análise.");
+                return;
+            }
+
+            showLoading(true, 'A iniciar análise com IA...');
+
+            for (let i = 0; i < fotosParaAnalisar.length; i++) {
+                const foto = fotosParaAnalisar[i];
+                showLoading(true, `O assistente de IA está a analisar a foto ${i + 1} de ${fotosParaAnalisar.length}...`);
+                
+                const prompt = "És um perito em vistorias técnicas. Descreve esta imagem de forma objetiva e técnica para um relatório de construção ou vistoria. Foca-te nos elementos principais e em potenciais anomalias ou detalhes importantes como fissuras, manchas de humidade, defeitos de construção, ou elementos estruturais relevantes. Responde apenas e só com a legenda final em Português de Portugal, sem qualquer texto introdutório ou conversacional. A legenda deve ser concisa e informativa.";
+                
+                const generatedText = await callGeminiAPI(prompt, foto.base64);
+                
+                if (generatedText) {
+                    foto.legenda = generatedText.replace(/(\r\n|\n|\r)/gm, ""); 
+                    const textarea = document.querySelector(`textarea[data-foto-id='${foto.id}']`);
+                    if (textarea) {
+                        textarea.value = foto.legenda;
+                        ajustarAlturaTextarea(textarea);
+                    }
+                } else {
+                    await showAlert(`A análise da foto ${i + 1} falhou. O processo foi interrompido.`);
+                    break; 
+                }
+            }
+            
+            showLoading(false);
+            await showAlert("Análise de todas as fotos concluída!");
+        }
+        
+        async function handleGerarDescricao() {
+            const titulo = document.getElementById('titulo').value;
+            if (!titulo) {
+                await showAlert("Por favor, insira um título para o relatório primeiro.");
+                return;
+            }
+            
+            const textarea = document.getElementById('descricao');
+            const textoUtilizador = textarea.value.trim();
+            let prompt;
+
+            if (textoUtilizador) {
+                 prompt = `És um assistente de engenharia. Com base no título do relatório '${titulo}' e nas notas do utilizador: "${textoUtilizador}", elabora uma descrição profissional e detalhada. Refina e expande as notas do utilizador num texto coeso. Responde apenas e só com o texto final, em Português de Portugal, sem qualquer texto introdutório.`;
+            } else {
+                 prompt = `És um assistente de engenharia. Com base no título do relatório '${titulo}', gera uma descrição introdutória profissional e detalhada para um registo fotográfico. A descrição deve ter cerca de 2 a 3 parágrafos. Responde apenas e só com o texto final, em Português de Portugal, sem qualquer texto introdutório.`;
+            }
+            
+            showLoading(true, 'O assistente de IA está a gerar a descrição...');
+            const generatedText = await callGeminiAPI(prompt);
+            showLoading(false);
+            
+            if (generatedText) {
+                textarea.value = generatedText;
+            }
+        }
+
+        async function handleGerarObservacoes() {
+            const titulo = document.getElementById('titulo').value;
+            const textarea = document.getElementById('observacoes');
+            const textoUtilizador = textarea.value.trim();
+
+            const legendas = fotosSelecionadas
+                .map(id => fotosCarregadas.find(f => f.id === id)?.legenda)
+                .filter(legenda => legenda && legenda.trim() !== '');
+
+            let prompt;
+
+            if (legendas.length > 0) {
+                const textoLegendas = legendas.map((leg, i) => `- Observação da Foto ${i+1}: ${leg}`).join('\n');
+                prompt = `És um especialista em redação de relatórios técnicos. Com base no título do relatório '${titulo}' e na seguinte lista de observações fotográficas, escreve um parágrafo coeso de "Observações Finais". Resume os pontos mais importantes e oferece uma conclusão geral sobre o estado do que foi vistoriado. Se o utilizador já tiver escrito algo nas observações ("${textoUtilizador}"), refina e integra o texto dele com base nas legendas. As observações são:\n${textoLegendas}\n\nResponde apenas e só com o texto final em Português de Portugal, sem qualquer texto introdutório.`;
+            } else if (textoUtilizador) {
+                prompt = `És um assistente de engenharia. Com base no título do relatório '${titulo}' e nas observações do utilizador: "${textoUtilizador}", elabora um texto de "Observações Finais" profissional e coeso para um relatório técnico. Refina e expande as notas fornecidas. Responde apenas e só com o texto final, em Português de Portugal, sem qualquer texto introdutório.`;
+            } else {
+                await showAlert("Para gerar observações finais de forma inteligente, por favor, adicione legendas às fotos (manualmente ou usando a análise automática) ou escreva algumas notas iniciais no campo de observações.");
+                return;
+            }
+            
+            showLoading(true, 'O assistente de IA está a gerar as observações...');
+            const generatedText = await callGeminiAPI(prompt);
+            showLoading(false);
+            
+            if (generatedText) {
+                textarea.value = generatedText;
+            }
+        }
+        
+        async function handleGerarLegenda(fotoId) {
+            const foto = fotosCarregadas.find(f => f.id == fotoId);
+            if (!foto) return;
+
+            const textarea = document.querySelector(`textarea[data-foto-id='${foto.id}']`);
+            const textoUtilizador = textarea ? textarea.value.trim() : '';
+
+            let prompt;
+
+            if (textoUtilizador) {
+                prompt = `És um perito em vistorias técnicas. O utilizador forneceu a seguinte nota sobre a imagem: "${textoUtilizador}". Com base nesta nota e na imagem, elabora uma legenda técnica e detalhada para o relatório. Foca-te no aspeto mencionado, refinando e expandindo a observação. Responde apenas e só com a legenda final em Português de Portugal, sem qualquer texto introdutório ou conversacional. A legenda deve ser concisa e precisa.`;
+            } else {
+                prompt = "És um perito em vistorias técnicas. Descreve esta imagem de forma objetiva e técnica para um relatório de construção ou vistoria. Foca-te nos elementos principais e em potenciais anomalias ou detalhes importantes. Responde apenas e só com a legenda final em Português de Portugal, sem qualquer texto introdutório ou conversacional. A legenda deve ser concisa.";
+            }
+            
+            showLoading(true, 'O assistente de IA está a analisar a foto...');
+            const generatedText = await callGeminiAPI(prompt, foto.base64);
+            showLoading(false);
+            
+            if (generatedText) {
+                foto.legenda = generatedText.replace(/(\r\n|\n|\r)/gm, ""); 
+                if (textarea) {
+                    textarea.value = foto.legenda;
+                    ajustarAlturaTextarea(textarea);
+                }
+            }
+        }
+        
+        async function handleGerarSumario() {
+            const legendas = fotosSelecionadas
+                .map(id => fotosCarregadas.find(f => f.id === id)?.legenda)
+                .filter(Boolean);
+            
+            if(legendas.length === 0) {
+                await showAlert("Por favor, refine as legendas das fotos antes de gerar o sumário.");
+                return;
+            }
+            
+            const textoLegendas = legendas.map((leg, i) => `Observação ${i+1}: ${leg}`).join('\n\n');
+            const prompt = `És um especialista em engenharia e peritagens. Analisa o seguinte conjunto de observações de um relatório fotográfico. Com base nestas observações, escreve um 'Sumário Executivo' conciso que resuma o estado geral e os principais problemas encontrados. De seguida, cria uma lista de 'Recomendações' com ações concretas e claras. Formata a resposta com os títulos '### Sumário Executivo' e '### Recomendações', usando markdown para os títulos e listas com bullets para as recomendações. Responde apenas e só com o texto final, em Português de Portugal, sem qualquer texto introdutório ou conversacional. As observações são as seguintes:\n\n${textoLegendas}`;
+            
+            showLoading(true, 'O assistente de IA está a gerar o sumário...');
+            const generatedText = await callGeminiAPI(prompt);
+            showLoading(false);
+            
+            if (generatedText) {
+                const containerPaginas = document.getElementById('paginas-relatorio');
+                containerPaginas.querySelectorAll('.pagina-sumario').forEach(p => p.remove());
+
+                const htmlContent = generatedText
+                    .replace(/### (.*?)\n/g, '<h3>$1</h3>')
+                    .replace(/\* (.*?)\n/g, '<li>$1</li>')
+                    .replace(/<\/li><li>/g, '</li><li>') 
+                    .replace(/<\/li>(?!<li>)/g, '</li></ul>')
+                    .replace(/<li>/g, '<ul><li>');
+
+                const mmToPx = (mm) => mm * 3.7795;
+                const alturaUtilConteudo = mmToPx(297 - 20 - 20 - 35);
+                const BUFFER_INFERIOR_SUMARIO = 130;
+                const maxHeight = alturaUtilConteudo - BUFFER_INFERIOR_SUMARIO;
+
+                const medidorPagina = criarPaginaGenerica(0, true);
+                Object.assign(medidorPagina.style, {
+                    position: 'absolute',
+                    left: '-9999px',
+                    top: '-9999px',
+                    visibility: 'hidden'
+                });
+                document.body.appendChild(medidorPagina);
+                
+                const conteudoMedidor = medidorPagina.querySelector('.conteudo-pagina');
+                let blocoSumarioMedidor = document.createElement('div');
+                blocoSumarioMedidor.className = 'sumario-bloco';
+                conteudoMedidor.appendChild(blocoSumarioMedidor);
+
+                const tempContainer = document.createElement('div');
+                tempContainer.innerHTML = htmlContent;
+                const nosFonte = Array.from(tempContainer.childNodes);
+                
+                const paginasHtmlResultantes = [];
+                
+                for (const no of nosFonte) {
+                    blocoSumarioMedidor.appendChild(no.cloneNode(true));
+                    
+                    if (conteudoMedidor.scrollHeight > maxHeight && blocoSumarioMedidor.children.length > 1) {
+                        const noExcedente = blocoSumarioMedidor.removeChild(blocoSumarioMedidor.lastChild);
+                        paginasHtmlResultantes.push(blocoSumarioMedidor.innerHTML);
+
+                        blocoSumarioMedidor.innerHTML = '';
+                        blocoSumarioMedidor.appendChild(noExcedente);
+                    }
+                }
+
+                if (blocoSumarioMedidor.innerHTML.trim() !== '') {
+                    paginasHtmlResultantes.push(blocoSumarioMedidor.innerHTML);
+                }
+
+                document.body.removeChild(medidorPagina);
+
+                const paginasDesc = containerPaginas.querySelectorAll('.descricao-bloco').length;
+                const insertionPoint = containerPaginas.children[paginasDesc];
+                
+                paginasHtmlResultantes.forEach((html, index) => {
+                    const novaPagina = criarPaginaGenerica(0, true);
+                    novaPagina.classList.add('pagina-sumario');
+                    let tituloPagina = '';
+                    if (index > 0) {
+                         if (!html.trim().startsWith('<h3')) {
+                            tituloPagina = '<h3>Sumário Executivo (continuação)</h3>';
+                         }
+                    }
+                    novaPagina.querySelector('.conteudo-pagina').innerHTML = `<div class="sumario-bloco">${tituloPagina}${html}</div>`;
+                    containerPaginas.insertBefore(novaPagina, insertionPoint);
+                });
+
+                renumerarPaginas();
+            }
+        }
+        
+        
+        // --- AÇÕES GERAIS E GESTÃO DE FICHEIROS ---
+        async function removerFotoDoRelatorio(fotoId) {
+            const confirm = await showConfirm('Tem a certeza que deseja remover permanentemente esta fotografia do relatório?');
+            if (!confirm) return;
+
+            fotosCarregadas = fotosCarregadas.filter(f => f.id !== fotoId);
+            fotosSelecionadas = fotosSelecionadas.filter(id => id !== fotoId);
+
+            showLoading(true, 'A atualizar o relatório...');
+            await gerarPaginasRelatorio();
+            showLoading(false);
+        }
+
+        function voltarInicio() {
+            document.getElementById('relatorio-gerado').style.display = 'none';
+            document.getElementById('pagina-inicial').style.display = 'block';
+            atualizarPreVisualizacao(); // Garante que a lista de fotos inicial está correta
+        }
+
+        async function imprimirRelatorio() {
+            showLoading(true, 'A preparar documento para impressão...');
+
+            try {
+                const reportClone = document.getElementById('paginas-relatorio').cloneNode(true);
+
+                reportClone.querySelectorAll('textarea[data-foto-id]').forEach(textarea => {
+                    const p = document.createElement('p');
+                    p.style.whiteSpace = 'pre-wrap';
+                    p.textContent = textarea.value;
+                    textarea.parentNode.replaceChild(p, textarea);
+                });
+
+                const imagePromises = fotosSelecionadas.map(async (id) => {
+                    const foto = fotosCarregadas.find(f => f.id === id);
+                    if (!foto) return;
+                    const mergedImage = await getMergedImageAsBase64(foto);
+                    
+                    const imgElement = reportClone.querySelector(`#img-${foto.id}`);
+                    if (imgElement) {
+                        imgElement.src = mergedImage;
+                    }
+                    
+                    const canvasElement = reportClone.querySelector(`#canvas-${foto.id}`);
+                    if (canvasElement) canvasElement.remove();
+                });
+                await Promise.all(imagePromises);
+                
+                reportClone.querySelectorAll('.no-print').forEach(el => el.remove());
+
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'absolute';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = '0';
+                document.body.appendChild(iframe);
+
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+                const mapInitScript = `
+                    function runMapInitializers() {
+                        const fotosComGPSHeat = ${JSON.stringify(fotosSelecionadas.map(id => fotosCarregadas.find(f => f.id == id)).filter(f => f && f.coords).map(f => [f.coords.lat, f.coords.lon]))};
+                        const mapContainerHeat = document.getElementById('mapa-heatmap');
+                        if (mapContainerHeat && fotosComGPSHeat.length > 0) {
+                            const map = L.map(mapContainerHeat).setView(fotosComGPSHeat[0], 13);
+                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                            L.heatLayer(fotosComGPSHeat, {radius: 25}).addTo(map);
+                            map.fitBounds(L.latLngBounds(fotosComGPSHeat).pad(0.1));
+                        } else if (mapContainerHeat) {
+                            mapContainerHeat.innerHTML = '<p style="text-align:center; padding-top: 50%;">Nenhuma foto com dados de GPS.</p>';
+                        }
+
+                        const fotosComGPSDetail = ${JSON.stringify(fotosSelecionadas.map((id, index) => ({ foto: fotosCarregadas.find(f => f.id == id), numero: index + 1 })).filter(item => item.foto && item.foto.coords))};
+                        const mapContainerDetail = document.getElementById('mapa-detalhado');
+                        if (mapContainerDetail && fotosComGPSDetail.length > 0) {
+                            const map = L.map(mapContainerDetail, { maxZoom: 22 }).setView([fotosComGPSDetail[0].foto.coords.lat, fotosComGPSDetail[0].foto.coords.lon], 16);
+                            const camada = '${dadosRelatorio.camadaMapa || 'padrao'}';
+                            let tileLayer;
+                            if (camada === 'satelite') {
+                                tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 22 });
+                            } else if (camada === 'topografico') {
+                                tileLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 });
+                            } else {
+                                tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22 });
+                            }
+                            tileLayer.addTo(map);
+                            fotosComGPSDetail.forEach(item => {
+                                const icon = L.divIcon({ className: 'leaflet-div-icon', html: '<span>' + item.numero + '</span>', iconSize: [24, 24] });
+                                L.marker([item.foto.coords.lat, item.foto.coords.lon], {icon: icon}).addTo(map);
+                            });
+                            const zoomLevel = '${dadosRelatorio.zoomMapa || 'auto'}';
+                            const bounds = L.latLngBounds(fotosComGPSDetail.map(item => [item.foto.coords.lat, item.foto.coords.lon]));
+                            if (zoomLevel === 'auto') {
+                                map.fitBounds(bounds.pad(0.1));
+                            } else {
+                                map.setView(bounds.getCenter(), parseInt(zoomLevel, 10));
+                            }
+                        } else if (mapContainerDetail) {
+                            mapContainerDetail.innerHTML = '<p style="text-align:center; padding-top: 50%;">Nenhuma foto com dados de GPS.</p>';
+                        }
+                    }
+                `;
+
+                iframeDoc.open();
+                iframeDoc.write(`
+                    <!DOCTYPE html>
+                    <html lang="pt-PT" data-theme="${document.documentElement.getAttribute('data-theme') || 'light'}">
+                    <head>
+                        <title>Impressão do Relatório</title>
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                        <style>${document.querySelector('style').innerHTML}</style>
+                    </head>
+                    <body>
+                        <main class="container">${reportClone.innerHTML}</main>
+                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+                        <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"><\/script>
+                        <script>${mapInitScript}<\/script>
+                    </body>
+                    </html>
+                `);
+                iframeDoc.close();
+                
+                iframe.onload = function() {
+                    const iframeWindow = iframe.contentWindow;
+                    iframeWindow.eval('runMapInitializers()');
+
+                    setTimeout(() => {
+                        showLoading(false);
+                        iframeWindow.focus();
+                        iframeWindow.print();
+                        setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+                    }, 1500);
+                };
+
+            } catch (error) {
+                console.error("Erro ao preparar para impressão:", error);
+                await showAlert("Ocorreu um erro ao preparar o documento para impressão.");
+                showLoading(false);
+            }
+        }
+        
+        async function getMergedImageAsBase64(foto) {
+            try {
+                const baseImage = new Image();
+                baseImage.src = foto.base64;
+                await new Promise((resolve, reject) => {
+                    baseImage.onload = resolve;
+                    baseImage.onerror = reject;
+                });
+
+                const canvas = document.createElement('canvas');
+                canvas.width = baseImage.naturalWidth;
+                canvas.height = baseImage.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(baseImage, 0, 0);
+
+                if (foto.anotacoes) {
+                    const annotationImage = new Image();
+                    annotationImage.src = foto.anotacoes;
+                    await new Promise((resolve, reject) => {
+                        annotationImage.onload = resolve;
+                        annotationImage.onerror = reject;
+                    });
+                    ctx.drawImage(annotationImage, 0, 0, baseImage.naturalWidth, baseImage.naturalHeight);
+                }
+
+                return canvas.toDataURL('image/jpeg', 0.9);
+            } catch (error) {
+                console.error("Erro ao fundir imagem e anotação:", error);
+                return foto.base64;
+            }
+        }
+        
+        function exportarKML() {
+            const fotosComGPS = fotosSelecionadas
+                .map((id, index) => ({ foto: fotosCarregadas.find(f => f.id === id), numero: index + 1 }))
+                .filter(item => item.foto && item.foto.coords);
+
+            if (fotosComGPS.length === 0) {
+                showAlert('Nenhuma foto com dados de GPS para exportar.');
+                return;
+            }
+
+            let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${dadosRelatorio.titulo || 'Relatório Fotográfico'}</name>
+    <description>Localização das fotografias do relatório Nº ${dadosRelatorio.numero || 'N/A'}</description>
+`;
+
+            fotosComGPS.forEach(item => {
+                const { foto, numero } = item;
+                const legenda = foto.legenda.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                kmlContent += `
+    <Placemark>
+      <name>Fotografia ${numero}</name>
+      <description><![CDATA[${legenda || 'Sem legenda.'}]]></description>
+      <Point>
+        <coordinates>${foto.coords.lon},${foto.coords.lat},0</coordinates>
+      </Point>
+    </Placemark>
+`;
+            });
+
+            kmlContent += `
+  </Document>
+</kml>`;
+
+            const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml;charset=utf-8' });
+            const nomeSeguro = `locais_${dadosRelatorio.numero.replace(/[\/\\:*?"<>|]/g, '-')}.kml`;
+            saveAs(blob, nomeSeguro);
+        }
+
+        async function exportarHTML() {
+            showLoading(true, 'A gerar relatório HTML...');
+
+            try {
+                let reportClone = document.getElementById('paginas-relatorio').cloneNode(true);
+                
+                reportClone.querySelectorAll('textarea[data-foto-id]').forEach(textarea => {
+                    const p = document.createElement('p');
+                    p.style.whiteSpace = 'pre-wrap';
+                    p.textContent = textarea.value;
+                    textarea.parentNode.replaceChild(p, textarea);
+                });
+
+                const imagePromises = fotosSelecionadas.map(async (id) => {
+                    const foto = fotosCarregadas.find(f => f.id == id);
+                    if (!foto) return;
+                    const mergedImage = await getMergedImageAsBase64(foto, false);
+                    
+                    const stringId = String(id);
+                    const escapedId = stringId.replace(/[^\w\d\-_]/g, '\\$&');
+                    const imgElement = reportClone.querySelector(`#img-${escapedId}`);
+
+                    if (imgElement) {
+                        imgElement.src = mergedImage;
+                        if (foto.isPortrait) {
+                            imgElement.classList.add('portrait');
+                        } else {
+                            imgElement.classList.remove('portrait');
+                        }
+                    }
+                    const canvasElement = reportClone.querySelector(`#canvas-${escapedId}`);
+                    if(canvasElement) canvasElement.remove();
+                });
+                await Promise.all(imagePromises);
+
+                reportClone.querySelectorAll('.export-map-link-placeholder').forEach(placeholder => {
+                    const fotoId = placeholder.dataset.fotoId;
+                    if (fotoId) {
+                        const link = `<a href="#mapa-detalhado" onclick="event.preventDefault(); irParaMarcadorNoMapa('${fotoId}')" class="botao-mapa" style="text-decoration: none;">📍 Ver no Mapa</a>`;
+                        placeholder.outerHTML = link;
+                    } else {
+                        placeholder.remove();
+                    }
+                });
+
+                reportClone.querySelectorAll('.no-print').forEach(el => el.remove());
+
+                const styles = document.querySelector('style').innerHTML;
+                const theme = document.documentElement.getAttribute('data-theme') || 'light';
+
+                const htmlString = `
+                    <!DOCTYPE html>
+                    <html lang="pt-PT" data-theme="${theme}">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>${dadosRelatorio.titulo}</title>
+                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                        <style>${styles}</style>
+                        <style>
+                            body { padding: 1rem; background-color: var(--cor-fundo); scroll-behavior: smooth; }
+                            .pagina-a4 {
+                                margin: 1rem auto;
+                                height: auto;
+                                min-height: 280mm;
+                                display: block;
+                            }
+                            .conteudo-pagina {
+                                display: block;
+                                height: auto;
+                                overflow: visible;
+                                display: grid !important;
+                            }
+                            .foto-bloco {
+                                flex: none;
+                                display: block;
+                                height: auto;
+                            }
+                            .foto-container {
+                                flex: none;
+                                display: block;
+                                height: auto;
+                                max-height: 75vh;
+                                margin-bottom: 10px;
+                            }
+                            .foto-bloco img {
+                                display: block;
+                                margin: 0 auto;
+                            }
+                            .botao-mapa { cursor: pointer !important; display: inline-block !important; }
+                            .export-map-link-placeholder { display: none; }
+                        </style>
+                    </head>
+                    <body>
+                        <main class="container">
+                            ${reportClone.innerHTML}
+                        </main>
+                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+                        <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"><\/script>
+                        <script>
+                            const dadosRelatorio = ${JSON.stringify(dadosRelatorio)};
+                            const fotosCarregadas = ${JSON.stringify(fotosCarregadas)};
+                            const fotosSelecionadas = ${JSON.stringify(fotosSelecionadas)};
+                            let markers = {};
+                            let mapInstance = null;
+
+                            function irParaElemento(elementId) {
+                                const elemento = document.getElementById(elementId);
+                                if (elemento) {
+                                    elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    elemento.style.transition = 'background-color 0.5s';
+                                    elemento.style.backgroundColor = 'rgba(0, 90, 156, 0.1)';
+                                    setTimeout(() => { elemento.style.backgroundColor = ''; }, 2000);
+                                }
+                            }
+
+                            function irParaMarcadorNoMapa(fotoId) {
+                                const marker = markers[fotoId];
+                                const mapContainer = document.getElementById('mapa-detalhado');
+                                if (marker && mapInstance && mapContainer) {
+                                    mapContainer.scrollIntoView({ behavior: 'smooth' });
+                                    mapInstance.setView(marker.getLatLng(), 18);
+                                    marker.openPopup();
+                                }
+                            }
+                            
+                            function inicializarMapaEstatisticasExport() {
+                                const fotosComGPS = fotosSelecionadas.map(id => fotosCarregadas.find(f => f.id == id)).filter(f => f && f.coords).map(f => [f.coords.lat, f.coords.lon]);
+                                const mapContainer = document.getElementById('mapa-heatmap');
+                                if (!mapContainer || fotosComGPS.length === 0) {
+                                    if(mapContainer) mapContainer.innerHTML = '<p style="text-align:center; padding-top: 50%;">Nenhuma foto com dados de GPS.</p>';
+                                    return;
+                                };
+                                const map = L.map(mapContainer).setView(fotosComGPS[0], 13);
+                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                                L.heatLayer(fotosComGPS, {radius: 25}).addTo(map);
+                                map.fitBounds(L.latLngBounds(fotosComGPS).pad(0.1));
+                            }
+
+                            function inicializarMapaDetalhadoExport() {
+                                const fotosComGPS = fotosSelecionadas.map((id, index) => ({ foto: fotosCarregadas.find(f => f.id == id), numero: index + 1 })).filter(item => item.foto && item.foto.coords);
+                                const mapContainer = document.getElementById('mapa-detalhado');
+                                if (!mapContainer || fotosComGPS.length === 0) {
+                                     if(mapContainer) mapContainer.innerHTML = '<p style="text-align:center; padding-top: 50%;">Nenhuma foto com dados de GPS.</p>';
+                                     return;
+                                }
+                                mapInstance = L.map(mapContainer, {maxZoom: 22}).setView([fotosComGPS[0].foto.coords.lat, fotosComGPS[0].foto.coords.lon], 16);
+                                
+                                const camada = dadosRelatorio.camadaMapa || 'padrao';
+                                let tileLayer;
+                                if (camada === 'satelite') {
+                                    tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                                        attribution: 'Tiles &copy; Esri',
+                                        maxZoom: 22
+                                    });
+                                } else if (camada === 'topografico') {
+                                    tileLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                                        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+                                        maxZoom: 17
+                                    });
+                                } else {
+                                    tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                        attribution: '&copy; OpenStreetMap',
+                                        maxZoom: 22
+                                    });
+                                }
+                                tileLayer.addTo(mapInstance);
+
+                                fotosComGPS.forEach(item => {
+                                    const icon = L.divIcon({ className: 'leaflet-div-icon', html: \`<span>\${item.numero}</span>\`, iconSize: [24, 24] });
+                                    const marker = L.marker([item.foto.coords.lat, item.foto.coords.lon], {icon: icon}).addTo(mapInstance).bindTooltip(item.foto.legenda || \`Fotografia \${item.numero}\`);
+                                    marker.on('click', () => irParaElemento(\`bloco-\${item.foto.id}\`));
+                                    markers[item.foto.id] = marker;
+                                });
+                                
+                                const zoomLevel = dadosRelatorio.zoomMapa || 'auto';
+                                const bounds = L.latLngBounds(fotosComGPS.map(item => [item.foto.coords.lat, item.foto.coords.lon]));
+                                if (zoomLevel === 'auto') {
+                                    mapInstance.fitBounds(bounds.pad(0.1));
+                                } else {
+                                    mapInstance.setView(bounds.getCenter(), parseInt(zoomLevel, 10));
+                                }
+                            }
+                            
+                            document.addEventListener('DOMContentLoaded', () => {
+                                inicializarMapaEstatisticasExport();
+                                inicializarMapaDetalhadoExport();
+                            });
+                        <\/script>
+                    </body>
+                    </html>
+                `;
+                const blob = new Blob([htmlString], { type: 'text/html' });
+                const nomeSeguro = `relatorio_interativo_${dadosRelatorio.numero.replace(/[\/\\:*?"<>|]/g, '-')}.html`;
+                saveAs(blob, nomeSeguro);
+
+            } catch(error) {
+                console.error("Erro ao exportar para HTML:", error);
+                await showAlert("Ocorreu um erro ao gerar o relatório HTML.");
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function exportarDOCX() {
+            showLoading(true, 'A gerar documento DOCX...');
+            try {
+                const { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, AlignmentType, PageBreak, Header, Footer, PageNumber } = docx;
+                
+                const dataFormatada = new Date(dadosRelatorio.data + 'T00:00:00').toLocaleDateString('pt-PT');
+                
+                const children = [];
+                
+                children.push(new Paragraph({ text: dadosRelatorio.titulo, heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER, spacing: { after: 600 } }));
+                
+                children.push(new Paragraph({ children: [new TextRun({ text: "Nº do Relatório: ", bold: true }), new TextRun({ text: dadosRelatorio.numero })], spacing: { after: 200 } }));
+                children.push(new Paragraph({ children: [new TextRun({ text: "Data: ", bold: true }), new TextRun({ text: dataFormatada })], spacing: { after: 200 } }));
+                children.push(new Paragraph({ children: [new TextRun({ text: "Cliente: ", bold: true }), new TextRun({ text: dadosRelatorio.cliente || 'N/A' })], spacing: { after: 200 } }));
+                children.push(new Paragraph({ children: [new TextRun({ text: "Elaborado por: ", bold: true }), new TextRun({ text: dadosRelatorio.elaboradoPor || 'N/A' })], spacing: { after: 600 } }));
+                
+                if (dadosRelatorio.rubrica) {
+                    try {
+                        const rubricaBytes = Uint8Array.from(atob(dadosRelatorio.rubrica.split(',')[1]), c => c.charCodeAt(0));
+                        children.push(new Paragraph({ children: [new ImageRun({ data: rubricaBytes, transformation: { width: 120, height: 60 } })], alignment: AlignmentType.RIGHT, spacing: { before: 200, after: 600 } }));
+                    } catch (e) { console.error('Erro ao adicionar rubrica:', e); }
+                }
+                
+                children.push(new Paragraph({ text: "Descrição do Registo Fotográfico", heading: HeadingLevel.HEADING_2, spacing: { before: 600, after: 300 } }));
+                children.push(new Paragraph({ text: dadosRelatorio.descricao, spacing: { after: 400 }, alignment: AlignmentType.JUSTIFIED }));
+                
+                const sumarioPagina = document.querySelector('.pagina-sumario .sumario-bloco');
+                if (sumarioPagina) {
+                    children.push(new PageBreak());
+                    Array.from(sumarioPagina.children).forEach(elem => {
+                        if (elem.tagName === 'H3') {
+                            children.push(new Paragraph({ text: elem.textContent, heading: HeadingLevel.HEADING_2, spacing: { before: 400, after: 200 } }));
+                        } else if (elem.tagName === 'UL') {
+                            Array.from(elem.children).forEach(li => {
+                                children.push(new Paragraph({ text: li.textContent, bullet: { level: 0 }, spacing: { after: 100 }, indent: { left: 720 } }));
+                            });
+                        } else if (elem.tagName === 'P') {
+                            children.push(new Paragraph({ text: elem.textContent, spacing: { after: 200 }, alignment: AlignmentType.JUSTIFIED }));
+                        }
+                    });
+                }
+                
+                const fotosOrdenadas = fotosSelecionadas.map(id => fotosCarregadas.find(f => f.id == id));
+                for (let i = 0; i < fotosOrdenadas.length; i++) {
+                    const foto = fotosOrdenadas[i];
+                    if (!foto) continue;
+                    
+                    children.push(new PageBreak());
+                    children.push(new Paragraph({ text: `Fotografia ${i + 1}`, heading: HeadingLevel.HEADING_3, spacing: { before: 200, after: 300 } }));
+                    
+                    try {
+                        const finalImageB64 = await getMergedImageAsBase64(foto, false); // Sem debug na exportação final
+                        const finalImageBytes = Uint8Array.from(atob(finalImageB64.split(',')[1]), c => c.charCodeAt(0));
+                        
+                        const tempImg = new Image();
+                        tempImg.src = finalImageB64;
+                        await new Promise(r => tempImg.onload = r);
+
+                        let width = 450;
+                        let height = Math.floor((tempImg.height / tempImg.width) * width);
+                        
+                        const maxDocxImageHeight = 500;
+                        const minDocxHeightForPortrait = 300;
+                        const availableHeightForImageAndCaption = 600;
+                        const captionLineHeight = 18;
+                        const captionPadding = 200;
+
+                        const estimatedCaptionLines = (foto.legenda.length / 80) + 1;
+                        const estimatedCaptionHeight = estimatedCaptionLines * captionLineHeight + captionPadding;
+
+                        let actualAvailableImageHeight = availableHeightForImageAndCaption - estimatedCaptionHeight;
+
+                        if (actualAvailableImageHeight < minDocxHeightForPortrait) {
+                            actualAvailableImageHeight = minDocxHeightForPortrait;
+                        }
+
+                        if (foto.isPortrait) {
+                            if (height > actualAvailableImageHeight) {
+                                height = actualAvailableImageHeight;
+                                width = Math.floor((tempImg.width / tempImg.height) * height);
+                            }
+                        } else {
+                            if (height > maxDocxImageHeight) {
+                                height = maxDocxImageHeight;
+                                width = Math.floor((tempImg.width / tempImg.height) * height);
+                            }
+                        }
+                        
+                        children.push(new Paragraph({ children: [new ImageRun({ data: finalImageBytes, transformation: { width, height } })], alignment: AlignmentType.CENTER, spacing: { after: 300 } }));
+                    } catch (e) {
+                         console.error('Erro ao adicionar imagem com anotações ao DOCX:', e);
+                         children.push(new Paragraph({ text: `[Erro ao processar imagem ${i + 1}]` }));
+                    }
+
+                    if (foto.legenda) {
+                        children.push(new Paragraph({ 
+                            children: [new TextRun({ text: foto.legenda, size: 18 })],
+                            spacing: { after: 200 }, 
+                            alignment: AlignmentType.JUSTIFIED, 
+                            indent: { left: 360, right: 360 } 
+                        }));
+                    }
+                }
+
+                if (dadosRelatorio.observacoes && dadosRelatorio.observacoes.trim() !== '') {
+                    children.push(new PageBreak());
+                    children.push(new Paragraph({ text: "Observações Finais", heading: HeadingLevel.HEADING_2, spacing: { before: 400, after: 200 } }));
+                    children.push(new Paragraph({ text: dadosRelatorio.observacoes, alignment: AlignmentType.JUSTIFIED }));
+                }
+                
+                const doc = new Document({
+                    styles: { default: { document: { run: { font: "Arial", size: 22 } } } },
+                    sections: [{
+                        properties: { page: { margin: { top: 1440, right: 1440, bottom: 1728, left: 1440, header: 720, footer: 720 } } },
+                        headers: { default: new Header({ children: [new Paragraph({ children: [new TextRun({ text: dadosRelatorio.subtitulo || '', size: 20 })], alignment: AlignmentType.RIGHT })] }) },
+                        footers: { default: new Footer({ children: [new Paragraph({ children: [new TextRun({ text: `${dadosRelatorio.titulo} | Página ` }), new TextRun({ children: [PageNumber.CURRENT], bold: true })], alignment: AlignmentType.RIGHT })] }) },
+                        children: children
+                    }]
+                });
+                
+                const blob = await Packer.toBlob(doc);
+                const nomeSeguro = `relatorio_${dadosRelatorio.numero.replace(/[\/\\:*?"<>|]/g, '-')}.docx`;
+                saveAs(blob, nomeSeguro);
+                
+            } catch (error) {
+                console.error('Erro detalhado ao exportar DOCX:', error);
+                await showAlert(`Erro ao exportar o documento: ${error.message || 'Erro desconhecido'}. Por favor, verifique a consola para mais detalhes.`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function guardarRelatorio() {
+            const dadosRelatorioParaGuardar = { ...dadosRelatorio };
+            
+            const dadosParaGuardar = {
+                dadosRelatorio: dadosRelatorioParaGuardar,
+                fotos: fotosCarregadas.map(f => ({
+                    id: f.id,
+                    nome: f.nome,
+                    base64: f.base64,
+                    selecionada: f.selecionada,
+                    legenda: f.legenda,
+                    anotacoes: f.anotacoes,
+                    coords: f.coords,
+                    layoutFotos: f.layoutFotos,
+                    isPortrait: f.isPortrait
+                })),
+                fotosSelecionadas: fotosSelecionadas,
+                versao: '62.0'
+            };
+
+            const json = JSON.stringify(dadosParaGuardar);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `relatorio_${dadosRelatorio.numero.replace(/[\/\\]/g, '-')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showAlert('Relatório guardado!');
+        }
+
+        async function carregarRelatorio(ficheiro) {
+            if (!ficheiro) return;
+            try {
+                const jsonString = await fileToPromise(ficheiro, 'text');
+                const dados = JSON.parse(jsonString);
+                
+                limparFormulario();
+
+                const form = document.getElementById('form-relatorio');
+                const dr = dados.dadosRelatorio;
+                form.titulo.value = dr.titulo || '';
+                form.numero.value = dr.numero || '';
+                form.data.value = dr.data || new Date().toISOString().split('T')[0];
+                form.descricao.value = dr.descricao || '';
+                form['elaborado-por'].value = dr.elaboradoPor || '';
+                form.cliente.value = dr.cliente || '';
+                form.observacoes.value = dr.observacoes || '';
+                form['subtitulo-relatorio'].value = dr.subtitulo || 'Registo Fotográfico de campo';
+                
+                if (dr.logotipo) {
+                    logotipoBase64 = dr.logotipo;
+                    document.getElementById('logo-preview-img').src = logotipoBase64;
+                    document.getElementById('logo-preview-container').style.display = 'block';
+                }
+                
+                if (dr.rodape) {
+                    rodapeBase64 = dr.rodape;
+                    document.getElementById('rodape-preview-img').src = rodapeBase64;
+                    document.getElementById('rodape-preview-container').style.display = 'block';
+                }
+                
+                if (dr.rubrica) {
+                    rubricaBase64 = dr.rubrica;
+                    document.getElementById('rubrica-preview-img').src = rubricaBase64;
+                    document.getElementById('rubrica-preview-container').style.display = 'block';
+                }
+                
+                if (dr.rubricaAbrev) {
+                    rubricaAbrevBase64 = dr.rubricaAbrev;
+                    document.getElementById('rubrica-abrev-preview-img').src = rubricaAbrevBase64;
+                    document.getElementById('rubrica-abrev-preview-container').style.display = 'block';
+                }
+
+                fotosCarregadas = dados.fotos || [];
+                fotosCarregadas.forEach(f => {
+                    if (f.layoutFotos === undefined) {
+                        f.layoutFotos = 1; 
+                    }
+                    if (f.isPortrait === undefined) {
+                        const img = new Image();
+                        img.src = f.base64;
+                        img.onload = () => {
+                            f.isPortrait = img.height > img.width;
+                        };
+                    }
+                });
+                fotosSelecionadas = dados.fotosSelecionadas || [];
+                
+                atualizarPreVisualizacao();
+                await showAlert('Relatório carregado com sucesso!');
+                
+            } catch (erro) {
+                await showAlert('Erro ao carregar o ficheiro. Verifique se é um ficheiro de relatório válido.');
+                console.error(erro);
+            }
+        }
+        
+        // --- SISTEMA DE TEMPLATES ---
+        function mostrarGestorTemplates() {
+            document.getElementById('modal-templates').style.display = 'block';
+            carregarListaTemplates();
+        }
+        
+        function fecharModalTemplates() {
+            document.getElementById('modal-templates').style.display = 'none';
+        }
+        
+        function carregarListaTemplates() {
+            const container = document.getElementById('lista-templates');
+            container.innerHTML = '<h4>Templates na Sessão Atual:</h4>';
+            
+            if (templates.length === 0) {
+                container.innerHTML += '<p style="color: #666;">Nenhum template carregado ou adicionado. Importe um ficheiro ou adicione um novo.</p>';
+                return;
+            }
+            
+            templates.forEach((template, index) => {
+                const div = document.createElement('div');
+                div.style.cssText = 'border: 1px solid var(--cor-borda); padding: 1rem; margin: 0.5rem 0; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;';
+                div.innerHTML = `
+                    <div>
+                        <strong>${template.nome}</strong>
+                        <p style="margin: 0; font-size: 0.9rem; color: #666;">${template.descricao || 'Sem descrição'}</p>
+                    </div>
+                    <div>
+                        <button type="button" class="botao botao-pequeno botao-principal" onclick="aplicarTemplate(${index})">Aplicar</button>
+                        <button type="button" class="botao botao-pequeno botao-secundario" onclick="eliminarTemplate(${index})">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        async function guardarComoTemplate() {
+            const nome = await showPrompt('Nome do template:');
+            if (!nome) return;
+            
+            const descricao = await showPrompt('Descrição (opcional):');
+            
+            const template = {
+                nome: nome,
+                descricao: descricao,
+                dados: {
+                    titulo: document.getElementById('titulo').value,
+                    elaboradoPor: document.getElementById('elaborado-por').value,
+                    cliente: document.getElementById('cliente').value,
+                    subtitulo: document.getElementById('subtitulo-relatorio').value,
+                    camadaMapa: document.getElementById('camada-mapa').value,
+                    zoomMapa: document.getElementById('zoom-mapa').value,
+                    logotipo: logotipoBase64,
+                    rodape: rodapeBase64,
+                    rubrica: rubricaBase64,
+                    rubricaAbrev: rubricaAbrevBase64
+                }
+            };
+            
+            templates.push(template);
+            carregarListaTemplates();
+            await showAlert('Template adicionado à sessão atual. Não se esqueça de exportar para guardar as alterações.');
+        }
+
+        function exportarTemplates() {
+            if (templates.length === 0) {
+                showAlert("Não existem templates para exportar.");
+                return;
+            }
+            const json = JSON.stringify(templates, null, 2); 
+            const blob = new Blob([json], { type: 'application/json' });
+            saveAs(blob, 'templates-relatorio.json');
+            showAlert("Ficheiro de templates exportado com sucesso!");
+        }
+
+        function importarTemplates(event) {
+            const ficheiro = event.target.files[0];
+            if (!ficheiro) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const novosTemplates = JSON.parse(e.target.result);
+                    if (!Array.isArray(novosTemplates)) {
+                        throw new Error("O ficheiro JSON não contém uma lista (array) de templates.");
+                    }
+                    templates = novosTemplates;
+                    carregarListaTemplates();
+                    await showAlert(`Foram importados ${templates.length} templates com sucesso!`);
+                } catch (error) {
+                    await showAlert(`Erro ao importar templates: ${error.message}`);
+                    console.error(error);
+                }
+            };
+            reader.readAsText(ficheiro);
+            event.target.value = '';
+        }
+        
+        async function aplicarTemplate(index) {
+            const template = templates[index];
+            if (!template) return;
+            
+            const confirmApply = await showConfirm(`Aplicar o template "${template.nome}"? Isto irá substituir os dados atuais do formulário.`);
+            if (confirmApply) {
+                document.getElementById('titulo').value = template.dados.titulo || '';
+                document.getElementById('elaborado-por').value = template.dados.elaboradoPor || '';
+                document.getElementById('cliente').value = template.dados.cliente || '';
+                document.getElementById('subtitulo-relatorio').value = template.dados.subtitulo || 'Registo Fotográfico de campo';
+                document.getElementById('camada-mapa').value = template.dados.camadaMapa || 'padrao';
+                document.getElementById('zoom-mapa').value = template.dados.zoomMapa || 'auto';
+                
+                logotipoBase64 = template.dados.logotipo || null;
+                document.getElementById('logo-preview-img').src = logotipoBase64 || '#';
+                document.getElementById('logo-preview-container').style.display = logotipoBase64 ? 'block' : 'none';
+                
+                rodapeBase64 = template.dados.rodape || null;
+                document.getElementById('rodape-preview-img').src = rodapeBase64 || '#';
+                document.getElementById('rodape-preview-container').style.display = rodapeBase64 ? 'block' : 'none';
+                
+                rubricaBase64 = template.dados.rubrica || null;
+                document.getElementById('rubrica-preview-img').src = rubricaBase64 || '#';
+                document.getElementById('rubrica-preview-container').style.display = rubricaBase64 ? 'block' : 'none';
+                
+                rubricaAbrevBase64 = template.dados.rubricaAbrev || null;
+                document.getElementById('rubrica-abrev-preview-img').src = rubricaAbrevBase64 || '#';
+                document.getElementById('rubrica-abrev-preview-container').style.display = rubricaAbrevBase64 ? 'block' : 'none';
+                
+                fecharModalTemplates();
+                await showAlert('Template aplicado com sucesso!');
+            }
+        }
+        
+        async function eliminarTemplate(index) {
+            const confirmDelete = await showConfirm('Tem a certeza que deseja eliminar este template da sessão atual?');
+            if (confirmDelete) {
+                templates.splice(index, 1);
+                carregarListaTemplates();
+            }
+        }
+
+        // --- SISTEMA DE LEGENDAS TÍPICAS ---
+        async function carregarLegendas(ficheiro) {
+            if (!ficheiro) return;
+            try {
+                const jsonString = await fileToPromise(ficheiro, 'text');
+                const legendas = JSON.parse(jsonString);
+                if (!Array.isArray(legendas) || !legendas.every(item => typeof item === 'string')) {
+                    throw new Error("O ficheiro JSON não é uma lista de textos (strings).");
+                }
+                legendasTipicas = legendas;
+                await showAlert(`Foram carregadas ${legendas.length} legendas típicas com sucesso!`);
+            } catch (erro) {
+                await showAlert(`Erro ao carregar o ficheiro de legendas: ${erro.message}`);
+                console.error(erro);
+            }
+            document.getElementById('input-legendas').value = ''; // Limpa o input
+        }
+
+        function mostrarSeletorLegendas(fotoId) {
+            if (legendasTipicas.length === 0) {
+                showAlert("Nenhuma lista de legendas foi carregada. Por favor, carregue um ficheiro JSON de legendas na página inicial.");
+                return;
+            }
+            fotoIdParaLegenda = fotoId;
+            const container = document.getElementById('lista-legendas-modal');
+            container.innerHTML = '';
+
+            legendasTipicas.forEach((legenda, index) => {
+                const div = document.createElement('div');
+                div.textContent = legenda;
+                div.onclick = () => aplicarLegenda(index);
+                container.appendChild(div);
+            });
+
+            document.getElementById('modal-legendas').style.display = 'flex';
+        }
+
+        function fecharSeletorLegendas() {
+            document.getElementById('modal-legendas').style.display = 'none';
+            fotoIdParaLegenda = null;
+        }
+
+        function aplicarLegenda(index) {
+            if (fotoIdParaLegenda === null) return;
+
+            const legenda = legendasTipicas[index];
+            const textarea = document.querySelector(`textarea[data-foto-id='${fotoIdParaLegenda}']`);
+            const foto = fotosCarregadas.find(f => f.id === fotoIdParaLegenda);
+
+            if (textarea && foto) {
+                textarea.value = legenda;
+                foto.legenda = legenda;
+                ajustarAlturaTextarea(textarea);
+            }
+            
+            fecharSeletorLegendas();
+        }
+
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,109 @@
+/* =====================================================
+   FICHEIRO CRÍTICO PARA IMPRESSÃO PDF
+   =====================================================
+
+   !!! ATENÇÃO - NÃO MODIFICAR SEM TESTES EXTENSIVOS !!!
+
+   Este ficheiro controla todo o layout de impressão PDF.
+   Alterações podem causar:
+   - Fotos cortadas ou fora da página
+   - Aspect ratio incorrectos
+   - Page breaks em locais errados
+   - Dimensionamento errado de canvas/anotações
+
+   Última versão estável: V32 (30 AGO 2025)
+   ===================================================== */
+
+/* Variáveis de dimensionamento A4 - CRÍTICO */
+:root {
+    --a4-largura: 210mm;
+    --a4-altura: 297mm;
+    --margem-impressao: 20mm;
+}
+
+/* ---- ESTILOS DE IMPRESSÃO ---- */
+@media print {
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    @page {
+        size: A4;
+        margin: 0;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: white;
+    }
+
+    .container {
+        margin: 0;
+        padding: 0;
+        max-width: none;
+    }
+
+    /* Elementos a esconder na impressão */
+    #pagina-inicial,
+    .botoes-acao,
+    .botoes-ficheiro,
+    .ferramentas-anotacao,
+    .botao-anotacao,
+    .cabecalho-pagina,
+    .botao-gemini,
+    .theme-toggle,
+    .custom-modal,
+    .controles-layout,
+    .controles-ordem {
+        display: none !important;
+    }
+
+    /* Página A4 - dimensões exactas */
+    .pagina-a4 {
+        width: var(--a4-largura);
+        height: var(--a4-altura);
+        margin: 0;
+        padding: var(--margem-impressao);
+        box-shadow: none;
+        page-break-after: always;
+        overflow: hidden;
+    }
+
+    /* Mostrar cabeçalho dentro das páginas A4 */
+    .pagina-a4 .cabecalho-pagina {
+        display: block !important;
+    }
+
+    /* Última página sem page break após */
+    .pagina-a4:last-child {
+        page-break-after: auto;
+    }
+
+    /* Textarea em impressão */
+    .foto-bloco textarea {
+        background-color: transparent !important;
+        border: 1px solid #ccc !important;
+    }
+
+    /* Classe utilitária no-print */
+    .no-print {
+        display: none !important;
+    }
+
+    /* =====================================================
+       REGRA CRÍTICA PARA FOTOS VERTICAIS (PORTRAIT)
+       =====================================================
+       Esta regra limita a altura máxima de fotos verticais
+       para garantir que cabem dentro da página A4.
+
+       Cálculo: 297mm (A4) - 2*20mm (margens) - espaço para
+       legenda e outros elementos = ~180mm máximo seguro
+       ===================================================== */
+    .foto-bloco.layout-1 img.portrait {
+        max-height: 180mm !important;
+        width: auto !important;
+    }
+}

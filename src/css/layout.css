@@ -1,0 +1,523 @@
+/* =====================================================
+   LAYOUT CSS - Formulário, Grid, Páginas A4
+   ===================================================== */
+
+/* ---- FORMULÁRIO INICIAL ---- */
+#pagina-inicial {
+    background: #fff;
+    padding: 2rem 2.5rem;
+    border-radius: var(--radius-md);
+    box-shadow: var(--sombra-caixa);
+}
+
+#pagina-inicial h1 {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--cor-borda);
+}
+
+/* ---- SELEÇÃO DE FOTOS ---- */
+.area-selecao-fotos {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: var(--cor-fundo);
+    border-radius: var(--radius-sm);
+    border: 2px dashed var(--cor-borda);
+}
+
+.botoes-area-fotos {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.pre-visualizacao-fotos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+/* ---- MINIATURAS DE FOTOS ---- */
+.foto-miniatura {
+    position: relative;
+    cursor: pointer;
+    border: 3px solid transparent;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    transition: all var(--transicao-normal);
+    background-color: #e9ecef;
+}
+
+.foto-miniatura.selecionada {
+    border-color: var(--cor-primaria);
+    transform: scale(0.95);
+}
+
+.foto-miniatura:not(.selecionada) {
+    transform: scale(1.0);
+}
+
+.foto-miniatura img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    display: block;
+}
+
+.foto-miniatura .placeholder-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-align: center;
+    padding: 5px;
+}
+
+.foto-miniatura .numero-ordem {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: var(--cor-primaria);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+/* Botões flutuantes nas miniaturas */
+.botao-rodar-foto {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background: rgba(0, 123, 255, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    line-height: 24px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transicao-normal);
+    z-index: 4;
+}
+
+.foto-miniatura:hover .botao-rodar-foto {
+    opacity: 1;
+}
+
+.botao-remover-foto {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(211, 47, 47, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    line-height: 24px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transicao-normal);
+    z-index: 4;
+}
+
+.foto-miniatura:hover .botao-remover-foto {
+    opacity: 1;
+}
+
+.botao-selecionar-foto {
+    position: absolute;
+    bottom: 5px;
+    left: 5px;
+    background: rgba(100, 100, 100, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    line-height: 24px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transicao-normal), background-color var(--transicao-normal);
+    z-index: 4;
+}
+
+.foto-miniatura:hover .botao-selecionar-foto {
+    opacity: 1;
+}
+
+.foto-miniatura.selecionada .botao-selecionar-foto {
+    background-color: var(--cor-primaria);
+    opacity: 1;
+}
+
+.info-selecao {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* Controlos de ordem */
+.foto-miniatura .controles-ordem {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    display: none;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0,0,0,0.5);
+    padding: 3px;
+    border-radius: 15px;
+    z-index: 5;
+}
+
+.foto-miniatura.selecionada:hover .controles-ordem {
+    display: flex;
+}
+
+.foto-miniatura .numero-ordem-display {
+    background: var(--cor-primaria);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    min-width: 28px;
+    text-align: center;
+}
+
+.botao-ordem:hover {
+    background: #f0f0f0;
+}
+
+.foto-miniatura.selecionada:hover .numero-ordem {
+    display: none;
+}
+
+/* Controlos de layout */
+.controles-layout {
+    position: absolute;
+    top: calc(50% + 2mm);
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 6px;
+    border-radius: var(--radius-md);
+    z-index: 6;
+}
+
+.foto-miniatura:hover .controles-layout {
+    display: flex;
+}
+
+.controles-layout label {
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.controles-layout .botoes-layout-grupo {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+
+.botao-layout {
+    background: #f0f0f0;
+    color: var(--cor-primaria);
+    border: 1px solid var(--cor-primaria);
+    border-radius: var(--radius-sm);
+    padding: 3px 6px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all var(--transicao-rapida);
+}
+
+.botao-layout:hover {
+    background: #e0e0e0;
+}
+
+.botao-layout.activa {
+    background: var(--cor-primaria);
+    color: white;
+}
+
+/* =====================================================
+   PÁGINAS A4 - Layout do Relatório
+   ===================================================== */
+
+.pagina-a4 {
+    width: var(--a4-largura);
+    height: var(--a4-altura);
+    background: white;
+    margin: 0 auto 20px auto;
+    padding: var(--margem-impressao);
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.logotipo-pagina {
+    position: absolute;
+    top: 8mm;
+    left: 14mm;
+    max-width: 40mm;
+    max-height: 20mm;
+    z-index: 10;
+}
+
+.cabecalho-pagina {
+    position: absolute;
+    top: 8mm;
+    right: var(--margem-impressao);
+    font-size: 1rem;
+    color: var(--cor-secundaria);
+    font-weight: 700;
+    z-index: 10;
+}
+
+.conteudo-pagina {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 10mm;
+    padding-bottom: 35mm;
+    overflow: hidden;
+}
+
+.cabecalho-relatorio {
+    margin-top: 15mm;
+}
+
+.cabecalho-relatorio h1 {
+    font-size: 1.25rem;
+    margin-bottom: 2rem;
+    color: var(--cor-titulo-relatorio);
+}
+
+.detalhes-relatorio {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem 1.5rem;
+    padding: 1rem;
+    background-color: var(--cor-fundo);
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    border-left: 5px solid var(--cor-primaria);
+}
+
+.detalhe-item {
+    padding: 0.2rem 0;
+    font-size: 0.85rem;
+}
+
+.detalhe-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.descricao-bloco,
+.observacoes-bloco {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--cor-borda);
+}
+
+.descricao-bloco p,
+.sumario-bloco p,
+.sumario-bloco ul,
+.observacoes-bloco p {
+    font-size: 10pt;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.sumario-bloco ul {
+    padding-left: 20px;
+}
+
+.sumario-bloco h3,
+.observacoes-bloco h3 {
+    color: var(--cor-primaria);
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* ---- BLOCOS DE FOTOS ---- */
+.foto-bloco {
+    page-break-inside: avoid;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    margin-bottom: 15px;
+}
+
+.foto-bloco:last-child {
+    margin-bottom: 0;
+}
+
+.foto-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    overflow: hidden;
+    margin-bottom: 10px;
+    min-height: 150px;
+}
+
+.foto-bloco img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--radius-sm);
+}
+
+/* Regras de altura para o ecrã (viewport relative) */
+.foto-bloco.layout-1 .foto-container img.portrait {
+    max-height: 65vh;
+}
+
+.foto-bloco.layout-2 .foto-container img.portrait {
+    max-height: 50vh;
+}
+
+.foto-bloco.layout-3 .foto-container img.portrait,
+.foto-bloco.layout-4 .foto-container img.portrait {
+    max-height: 40vh;
+}
+
+.foto-bloco p {
+    font-size: 0.765rem;
+    color: #666;
+    margin-bottom: 10px;
+    flex-shrink: 0;
+}
+
+.foto-bloco textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ccc;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-family: inherit;
+    resize: none;
+    overflow-y: hidden;
+    flex-shrink: 0;
+}
+
+/* Canvas de anotações */
+.canvas-anotacoes {
+    position: absolute;
+    pointer-events: none;
+    /* Dimensões e posição definidas via JavaScript */
+}
+
+/* ---- RODAPÉ E RUBRICA ---- */
+.rodape-pagina {
+    position: absolute;
+    bottom: 15mm;
+    left: var(--margem-impressao);
+    right: var(--margem-impressao);
+    text-align: right;
+    font-size: 10pt;
+    color: #666;
+}
+
+.rodape-visual {
+    position: absolute;
+    bottom: 13mm;
+    left: var(--margem-impressao);
+    right: var(--margem-impressao);
+}
+
+.rodape-visual img {
+    width: 100%;
+    max-height: 15mm;
+    object-fit: contain;
+}
+
+.rodape-visual .linha-rodape {
+    width: 100%;
+    height: 2px;
+    background-color: var(--cor-primaria);
+}
+
+.rubrica-capa {
+    position: absolute;
+    bottom: 25mm;
+    right: var(--margem-impressao);
+    max-width: 30mm;
+    max-height: 15mm;
+    z-index: 15;
+}
+
+.rubrica-capa img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.rubrica-abrev-pagina {
+    position: absolute;
+    bottom: 25mm;
+    right: var(--margem-impressao);
+    max-width: 15mm;
+    max-height: 7.5mm;
+    z-index: 15;
+}
+
+.rubrica-abrev-pagina img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* ---- MAPAS ---- */
+.map-container {
+    height: 180mm;
+    width: 100%;
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--radius-md);
+}
+
+.estatisticas-texto {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.leaflet-div-icon {
+    background: var(--cor-primaria);
+    color: white;
+    border: 2px solid white;
+    border-radius: 50%;
+    font-weight: bold;
+    text-align: center;
+    line-height: 20px;
+}

@@ -1,0 +1,237 @@
+/* =====================================================
+   THEMES CSS - Modo Escuro e Glassmorphism
+   ===================================================== */
+
+/* =====================================================
+   MODO ESCURO
+   ===================================================== */
+[data-theme="dark"] {
+    --cor-primaria: #4DA6CC;
+    --cor-secundaria: #E0E0E0;
+    --cor-fundo: #1E1E1E;
+    --cor-borda: #3A3A3A;
+    --cor-anotacao: #FF6B6B;
+    --cor-gemini: #B084CC;
+    --cor-titulo-relatorio: #FFB366;
+    --sombra-caixa: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] body {
+    background-color: #121212;
+}
+
+[data-theme="dark"] #pagina-inicial,
+[data-theme="dark"] .pagina-a4 {
+    background: #2A2A2A;
+    color: var(--cor-secundaria);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+    background: #3A3A3A;
+    color: var(--cor-secundaria);
+    border-color: #4A4A4A;
+}
+
+[data-theme="dark"] .detalhes-relatorio {
+    background-color: #3A3A3A;
+}
+
+[data-theme="dark"] #lista-templates > div {
+    border-color: #4A4A4A;
+    background: #3A3A3A;
+}
+
+[data-theme="dark"] #lista-legendas-modal div:hover {
+    background-color: #3A3A3A;
+}
+
+/* =====================================================
+   GLASSMORPHISM / LIQUID GLASS
+   ===================================================== */
+:root {
+    /* Variáveis Glass */
+    --glass-blur: 20px;
+    --glass-blur-light: 12px;
+    --glass-bg-light: rgba(255, 255, 255, 0.75);
+    --glass-bg-dark: rgba(40, 40, 40, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-border-dark: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+/* ---- MODAIS COM GLASS EFFECT ---- */
+.custom-modal {
+    background: linear-gradient(
+        135deg,
+        rgba(0, 0, 0, 0.4) 0%,
+        rgba(0, 0, 0, 0.6) 100%
+    );
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.custom-modal-content {
+    background: var(--glass-bg-light);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--glass-shadow);
+}
+
+[data-theme="dark"] .custom-modal-content {
+    background: var(--glass-bg-dark);
+    border-color: var(--glass-border-dark);
+}
+
+/* Modal Templates */
+#modal-templates > div {
+    background: var(--glass-bg-light);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--glass-shadow);
+}
+
+[data-theme="dark"] #modal-templates > div {
+    background: var(--glass-bg-dark);
+    border-color: var(--glass-border-dark);
+}
+
+/* Modal Alert e Confirm - Dark Mode */
+[data-theme="dark"] #custom-alert-modal > div,
+[data-theme="dark"] #custom-confirm-modal > div,
+[data-theme="dark"] #modal-legendas > div {
+    background: var(--glass-bg-dark);
+    color: var(--cor-secundaria);
+    border-color: var(--glass-border-dark);
+}
+
+/* ---- LOADING OVERLAY GLASS ---- */
+#loading-overlay {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* ---- THEME TOGGLE GLASS ---- */
+.theme-toggle {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 999;
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all var(--transicao-normal);
+
+    /* Glass effect */
+    background: var(--glass-bg-light);
+    backdrop-filter: blur(var(--glass-blur-light));
+    -webkit-backdrop-filter: blur(var(--glass-blur-light));
+    border: 1px solid var(--glass-border);
+    color: var(--cor-primaria);
+    box-shadow: var(--glass-shadow);
+}
+
+[data-theme="dark"] .theme-toggle {
+    background: var(--glass-bg-dark);
+    border-color: var(--glass-border-dark);
+    color: #fff;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* ---- CONTROLOS DE FOTO GLASS ---- */
+.foto-miniatura .controles-ordem {
+    background: var(--glass-bg-light);
+    backdrop-filter: blur(var(--glass-blur-light));
+    -webkit-backdrop-filter: blur(var(--glass-blur-light));
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 4px 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .foto-miniatura .controles-ordem {
+    background: var(--glass-bg-dark);
+    border-color: var(--glass-border-dark);
+}
+
+/* Controlos de Layout Glass */
+.controles-layout {
+    background: var(--glass-bg-light);
+    backdrop-filter: blur(var(--glass-blur-light));
+    -webkit-backdrop-filter: blur(var(--glass-blur-light));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="dark"] .controles-layout {
+    background: var(--glass-bg-dark);
+    border-color: var(--glass-border-dark);
+}
+
+/* Ferramentas de Anotação Glass */
+.ferramentas-anotacao {
+    background: var(--glass-bg-light);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .ferramentas-anotacao {
+    background: var(--glass-bg-dark);
+    border-color: var(--glass-border-dark);
+}
+
+/* ---- ÁREA DE SELEÇÃO DE FOTOS MODERNIZADA ---- */
+.area-selecao-fotos {
+    background: linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.9) 0%,
+        rgba(248, 250, 252, 0.9) 100%
+    );
+    border: 2px dashed var(--cor-primaria);
+    border-radius: var(--radius-lg);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: border-color var(--transicao-normal), background var(--transicao-normal);
+}
+
+.area-selecao-fotos:hover {
+    border-color: var(--cor-primaria);
+    background: linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 1) 0%,
+        rgba(240, 245, 250, 1) 100%
+    );
+}
+
+[data-theme="dark"] .area-selecao-fotos {
+    background: linear-gradient(
+        145deg,
+        rgba(50, 50, 50, 0.9) 0%,
+        rgba(40, 40, 40, 0.9) 100%
+    );
+    border-color: var(--cor-primaria);
+}
+
+[data-theme="dark"] .area-selecao-fotos:hover {
+    background: linear-gradient(
+        145deg,
+        rgba(60, 60, 60, 0.95) 0%,
+        rgba(50, 50, 50, 0.95) 100%
+    );
+}
